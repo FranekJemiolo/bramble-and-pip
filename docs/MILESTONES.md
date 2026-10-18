@@ -70,7 +70,7 @@ instruments, `CalmingAudioPipeline` (18 kHz → 2.2 kHz sweep), `ResilientAudioL
 
 ---
 
-## Phase 4 — Content matrix, minigames & offline vector printables ☐
+## Phase 4 — Content matrix, minigames & offline vector printables ☑
 
 **Deliverables**
 `GlobalEventBus` + `window.__GAME__ / __GAME_STATE__ / __EVENT_BUS__`, `NonReaderDialogueBox`

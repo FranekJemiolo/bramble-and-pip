@@ -132,3 +132,50 @@ ambiguous or internally inconsistent.
 
 **Next.** Phase 4: Content Matrix, Minigames & Offline Vector Printables.
 
+---
+
+### [0005] 2026-10-18 — Phase 4: Content Matrix, Minigames & Offline Vector Printables
+
+**Context:** Phase 4 delivers the complete pedagogical narrative structure, tactile minigames with zero failure states, seamless scene orchestration over the 320x288 canvas, and zero-egress client-side vector PDF generation.
+
+**Decisions:**
+* **20-Chapter Matrix:** Organized across Spring, Summer, Autumn, and Winter (5 chapters per season), concluding with Chapter 20 (*The Ranger's Lodge*) where all forest companions gather around the hearth. Each chapter features an objective, a 32x32 pictogram, and $\le 3$ uppercase sight words.
+* **Satchel Capacity Limits:** Invariant enforcement: strictly 3 item slots maximum, and maximum 3 units per item type. Prevents hoarding and keeps cognitive load minimal.
+* **Non-Reader Dialogue Guard:** `NonReaderDialogueBox` enforces a mandatory $\ge 1.5$s post-audio dwell time before any touch progression is accepted, preventing accidental skipping and ensuring comprehension.
+* **Zero Failure Puzzles:**
+  - *The Mossy Gearbox* (Chapter 7): Gear meshing with 80px magnetic capture basin; gear ratios computed synchronously to drive idler and driven cogs with gentle acoustic ticking.
+  - *Stepping Stone Subitizing* (Chapter 3): Lily pad dot arrangements (1..5) with 80px magnetic snapping. Missing a stone triggers no buzzers or penalties, preserving calm reassurance.
+* **Scene Architecture:**
+  - `WorldScene`: Manages collision grid, kinematic player movement (64 px/s, 6px corner slide), camera deadzone, 16-breadcrumb Pip companion, and hotspot triggers.
+  - `SatchelUIScene`: Parallel HUD displaying inventory slots, 15-minute countdown clock, and sketchbook launcher.
+  - `PuzzleOverlayScene`: Seamless modal overlay pausing world kinematics while minigames are solved.
+  - `SketchbookScene`: Wax crayon drawing pad and offline printable PDF exporter.
+  - `BedtimeScene`: Nocturnal resting lock triggered at minute 15 with sleeping Pip and crackling fireplace.
+* **Offline Vector PDF Generation:** Powered by `pdfmake` bundled with `vfs_fonts` (Roboto). Emits valid binary `%PDF-` documents (`Winter Track Spotter Guide` and `Autumn Leaf-Press Journal`) in memory with zero network egress.
+
+**Artifacts Produced:**
+* `src/core/EventBus.ts`: Typed `GlobalEventBus` bound to `window.__EVENT_BUS__`.
+* `src/core/campaign/types.ts`: 20-chapter content matrix and item specifications.
+* `src/core/campaign/CampaignManager.ts`: Campaign state engine, satchel management, and serialization.
+* `src/minigames/types.ts`: `IPuzzle` standard interface.
+* `src/minigames/MossyGearboxPuzzle.ts`: Gear ratio and magnetic meshing model.
+* `src/minigames/SteppingStonePuzzle.ts`: 1..5 subitizing stone puzzle.
+* `src/ui/NonReaderDialogueBox.ts`: Dwell-enforced non-reader dialogue box.
+* `src/export/pdfGenerator.ts`: Offline vector PDF definitions and browser download bridge.
+* `src/scenes/WorldScene.ts`: Full exploration scene with global hooks `window.__GAME__` and `window.__GAME_STATE__`.
+* `src/scenes/SatchelUIScene.ts`: Inventory and session timer HUD.
+* `src/scenes/PuzzleOverlayScene.ts`: Modal puzzle runner.
+* `src/scenes/SketchbookScene.ts`: Wax crayon drawing pad and printable guide exporter.
+* `src/scenes/BedtimeScene.ts`: Resting lock scene.
+* `src/main.ts`: Complete Phaser scene registration.
+* Unit tests in `tests/unit/campaign-minigames.spec.ts` and `tests/unit/pdf-export.spec.ts` (87 total tests passing).
+
+**Gate:**
+* `npm run lint` ✔ (0 warnings)
+* `npm run build` ✔ (tsc + vite build clean, 15 precached PWA entries)
+* `npm run test:unit` ✔ (87/87 passing)
+* `npm run audit:egress` ✔ (clean)
+
+**Next.** Phase 5: Persistence, Parent Gate, Curfews & Power Management.
+
+
