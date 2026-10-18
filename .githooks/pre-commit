@@ -1,0 +1,5 @@
+#!/bin/sh
+# Fast static gates on every commit. Unit tests run on pre-push.
+set -e
+npm run --silent typecheck
+npm run --silent lint

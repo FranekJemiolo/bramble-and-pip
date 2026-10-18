@@ -47,3 +47,26 @@ ambiguous or internally inconsistent.
 * Voice-over is the main content gap and is flagged as such in the final sign-off.
 
 **Next.** Commit docs, then Phase 1 scaffolding.
+
+---
+
+## [0002]: Phase 1 — Repository foundation, tooling & CI/CD
+*2026-10-18 · Phase 1*
+
+**Done**
+* Vite 7 + TypeScript 5.9 (strict, `noUnusedLocals/Parameters`, `verbatimModuleSyntax`), Phaser `^3.90`, EasyStar (ships its own types — dropped the stub `@types/easystarjs`), `pdfmake` 0.2.x, Workbox 7, Capacitor 7, Vitest 3, Playwright.
+* `index.html` carries the mandated CSP (exact brief string + `base-uri 'self'; object-src 'none'; form-action 'none'`). A tiny Vite plugin relaxes `connect-src` **only under `vite serve`** (HMR websocket); `build` and `preview` keep `connect-src 'none'` verbatim, and the audit script asserts it in `dist/index.html`.
+* ESLint 9 flat config bans `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon` and `Math.random` in `src/` (randomness must come from the seeded RNG, which makes puzzles/tests deterministic).
+* PWA: `vite-plugin-pwa` in `injectManifest` mode → `dist/sw.js` (classic/IIFE worker) + `manifest.webmanifest`; `workbox-precaching` + `workbox-routing` navigation fallback; registration through `workbox-window`, production only.
+* Icons are generated from a 32×32 *palette-indexed* pixel scene by `scripts/make-icons.mjs` (zero deps, own PNG encoder).
+* CI (`ci.yml`): checkout → Node 20 → `npm ci` → typecheck → lint → Vitest → build → egress audit → Playwright (Monte-Carlo = 100). The brief lists "Playwright, then build"; E2E must run against the *production build served by `vite preview`*, so build comes first (ADR-014).
+* Deploy (`deploy.yml`): `workflow_run` on CI success for pushes to `main` → rebuild the verified commit → `upload-pages-artifact` → `actions/deploy-pages@v4`. Rebuilding (rather than passing artifacts across workflows) keeps the chain simple and reproducible.
+* Git hooks live in `.githooks/` (`prepare` sets `core.hooksPath`): pre-commit = typecheck + lint, pre-push = unit tests.
+
+**Issues hit**
+* `workbox-build` looks for the *literal* text `self.__WB_MANIFEST`; aliasing `self` failed the build. Fixed with a `Window` interface augmentation so the literal stays valid TypeScript.
+* Default SW output format was ES module (`sw.mjs`); forced `rollupFormat: 'iife'` so `dist/sw.js` is a classic worker that registers everywhere.
+
+**Gate:** typecheck ✔ · lint ✔ (0 warnings) · unit (charter invariants, 6 tests) ✔ · build ✔ · egress audit ✔ · `dist/sw.js`, `manifest.webmanifest`, CSP present ✔.
+
+**Next.** Phase 2: engine runtime, tolerant input and math core.

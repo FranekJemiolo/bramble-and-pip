@@ -1,0 +1,128 @@
+:root {
+  --letterbox: #1a1a24;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --cream: #faf6e8;
+  --bark: #5c4033;
+  --moss: #4a7032;
+  --night: #1a232a;
+  --clay: #b88a58;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--letterbox);
+  /* Pediatric ergonomics: no scroll, pinch, long-press menus or text selection. */
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: ui-rounded, "Avenir Next", "Trebuchet MS", system-ui, sans-serif;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+#game-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+#game-container canvas {
+  display: block;
+  flex: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+  outline: none;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Parent area (DOM overlay, semantic HTML, no external fonts) ---------- */
+#overlay-root { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+#overlay-root > * { pointer-events: auto; }
+
+.grownups-button {
+  position: fixed;
+  right: calc(8px + var(--safe-right));
+  top: calc(8px + var(--safe-top));
+  min-width: 44px; min-height: 44px;
+  padding: 6px 12px;
+  border: 2px solid var(--bark);
+  border-radius: 10px;
+  background: rgba(250, 246, 232, 0.92);
+  color: var(--bark);
+  font: 600 13px/1.1 ui-rounded, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.grownups-button:focus-visible { outline: 3px solid var(--moss); outline-offset: 2px; }
+
+.panel-backdrop {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+  background: rgba(26, 35, 42, 0.78);
+  touch-action: auto;
+}
+.panel {
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 22px 24px;
+  border-radius: 16px;
+  border: 3px solid var(--bark);
+  background: var(--cream);
+  color: #3b2f2f;
+  user-select: text;
+  -webkit-user-select: text;
+  box-shadow: 0 6px 0 rgba(59, 47, 47, 0.35);
+}
+.panel h2 { margin: 0 0 6px; font-size: 22px; }
+.panel h3 { margin: 18px 0 6px; font-size: 16px; }
+.panel p, .panel label, .panel li { font-size: 15px; line-height: 1.45; }
+.panel .muted { color: #6b5a4a; font-size: 13px; }
+.panel .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.panel input[type="text"], .panel input[type="number"], .panel input[type="time"], .panel select {
+  font: inherit; padding: 8px 10px; border-radius: 8px; border: 2px solid var(--clay); background: #fff; color: inherit; min-height: 40px;
+}
+.panel button {
+  font: 600 15px/1 inherit; min-height: 44px; padding: 10px 16px; border-radius: 10px;
+  border: 2px solid var(--bark); background: #e4edf0; color: var(--bark); cursor: pointer; touch-action: manipulation;
+}
+.panel button.primary { background: var(--moss); color: var(--cream); }
+.panel button:focus-visible, .panel input:focus-visible, .panel select:focus-visible { outline: 3px solid #6b8e9e; outline-offset: 2px; }
+.panel .note { padding: 8px 10px; border-left: 4px solid var(--clay); background: #f4ead2; border-radius: 6px; }
+.panel .close { margin-left: auto; }
+.challenge { font-size: 20px; font-weight: 600; margin: 10px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
