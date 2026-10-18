@@ -53,7 +53,7 @@ magnetic snapping (80 px, 200 ms cubic ease-out), `BezierTraceTracker` + `WaxCra
 
 ---
 
-## Phase 3 — Visual system, audio pipeline & companion FSM ◐
+## Phase 3 — Visual system, audio pipeline & companion FSM ☑
 
 **Deliverables**
 Palette + `PaletteGrader` (sunset/night), `IndexedImage`, 5 × 7 pixel font, procedural sprites/tiles,

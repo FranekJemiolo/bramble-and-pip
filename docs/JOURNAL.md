@@ -97,3 +97,38 @@ ambiguous or internally inconsistent.
 * `npm run test:unit` ✔ (64/64 passing)
 
 **Next.** Phase 3: Visual System, Audio Pipeline & Companion FSM.
+
+---
+
+### [0004] 2026-10-18 — Phase 3: Visual System, Audio Pipeline & Companion FSM
+
+**Context:** The visual and acoustic systems establish the sensory core of *Bramble & Pip*: the 16-color "Whispering Woods" master palette, procedural pixel font and sprite rendering, a 3-tier Bayer-dithered flashlight cone, an in-memory procedural acoustic synthesizer with lowpass guard (<4.5 kHz), sunset exponential filter sweep, and Pip's 16-breadcrumb companion movement FSM.
+
+**Decisions:**
+* **ADR-004:** Sunset color grading operates as a 16-color palette swap re-baked into canvas textures (18 discrete steps across 180s), shifting the blue channel into warm amber/ochre tones without fragment shader overhead.
+* **Acoustic Synthesis:** Sounds are synthesized in-memory via `Float32Array` PCM buffers using pure sine, harmonic, and noise math. A 4-pole cascaded lowpass filter strictly enforces the `<4.5` kHz frequency ceiling ($< -40$ dB leakage), gentle attack envelopes ($\ge 40$ ms), and peak normalization to $\le -12$ dBFS.
+* **Pip Companion Lag:** A 17-sample ring buffer (`delaySteps + 1 = 17`) maintains an exact 16-breadcrumb trail lag behind the player, mirroring *Pokémon Yellow* tactile following. Pip transitions between `FOLLOWING`, `IDLE_CURIOUS` (after 2s idle), `INSPECTING` (nature curiosities), `YAWNING` (at minute 12 sunset), and `SLEEPING` (at bedtime).
+* **Zero Egress Compliance:** All sprites, tiles, fonts, and audio are procedurally generated in client memory. No external images or audio files are requested over the network.
+
+**Artifacts Produced:**
+* `src/render/palette.ts`: 16-color Whispering Woods palette definition and `PaletteGrader`.
+* `src/render/font.ts`: 5x7 bitmap pixel font without anti-aliasing.
+* `src/render/sprites.ts`: Procedural Ranger Bramble, Pip, wildlife (deer, hedgehog, owl), items, and tactile buttons.
+* `src/render/tiles.ts`: Autotiles, trees, water, cabin props, and lily pads.
+* `src/render/flashlight.ts`: Bayer 4x4 dithered 3-tier concentric flashlight mask.
+* `src/render/TextureBank.ts`: Canvas texture baker with strict 16-color palette clamping and Phaser texture bridge.
+* `src/core/audio/ResilientAudioLifecycle.ts`: Silent HTML5 audio bridge for iOS mute switch bypass and user-gesture unlocking.
+* `src/core/audio/CalmingAudioPipeline.ts`: Web Audio node graph with 18 kHz $\to$ 2.2 kHz sunset exponential sweep.
+* `src/core/audio/AudioFormat.ts`: Dual-codec fallback (OGG / M4A).
+* `src/core/audio/synth.ts`: Pure in-memory acoustic synthesizer (kalimba, woodblock, guitar, water bubble, Pip chirrup).
+* `src/core/companion/PipCompanion.ts`: Pip behavior and movement FSM with 16-sample breadcrumb lag.
+* Unit tests in `tests/unit/audio-companion.spec.ts` (77 total tests passing).
+
+**Gate:**
+* `npm run lint` ✔ (0 warnings)
+* `npm run build` ✔ (tsc + vite build clean)
+* `npm run test:unit` ✔ (77/77 passing)
+* `npm run audit:egress` ✔ (clean)
+
+**Next.** Phase 4: Content Matrix, Minigames & Offline Vector Printables.
+
