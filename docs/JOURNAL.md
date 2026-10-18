@@ -70,3 +70,30 @@ ambiguous or internally inconsistent.
 **Gate:** typecheck ✔ · lint ✔ (0 warnings) · unit (charter invariants, 6 tests) ✔ · build ✔ · egress audit ✔ · `dist/sw.js`, `manifest.webmanifest`, CSP present ✔.
 
 **Next.** Phase 2: engine runtime, tolerant input and math core.
+
+---
+
+## [0003]: Phase 2 — Engine Runtime, Tolerant Input & Math Core
+*2026-10-18 · Phase 2*
+
+**Done**
+* `IntegerScaler` (`src/core/scaling.ts`): Implemented mathematical integer letterbox scaling targeting $320 \times 288$ native resolution with nearest-neighbor display coordinates, viewport calculation, and bidirectional client $\leftrightarrow$ logical pointer projection.
+* `KinematicMovementController` (`src/core/world/kinematics.ts`): Implemented unhurried 64 px/s continuous velocity decomposition with 6 px corner-sliding resolution, preventing stalls or blocking on obstacles and diagonal collision walls.
+* `PixelPerfectCameraController` (`src/core/world/camera.ts`): Implemented deadzone bounding box ($48 \times 36$ px) with floor quantization, eliminating subpixel shimmering on low-resolution pixel grids.
+* `TolerantInputManager` (`src/core/input/TolerantInputManager.ts` & `src/core/input/magnetic.ts`):
+  - Single-pointer mutual exclusion lock dropping secondary taps and stray palm contacts ($>60$ px).
+  - 5 px low-pass tremor hysteresis filter with exponential moving average smoothing.
+  - 12 px perimeter deadzone against edge-gripping "screen hugging".
+  - 80 px radial potential field magnetic snapping with 200 ms cubic ease-out tweening.
+  - 300 ms global debounce against rapid "rage tapping".
+* `WaxCrayonTraceRenderer` & `BezierTraceTracker` (`src/core/input/BezierTraceTracker.ts`, `src/render/WaxCrayonTraceRenderer.ts`): Parametric cubic Bézier projection with 48 px safe drive corridor, procedural wax particle dabbing onto `IndexedImage`, and lift-and-resume buffering preserving progress parameter $u \ge 0.92$.
+* `TilePathfindingManager` (`src/core/world/pathfinding.ts`): EasyStar.js synchronous A* navigation on $16 \times 16$ tile grids with nearest-walkable spiral snap for forgiving tap-to-move input.
+* `AutotileResolver` (`src/core/world/autotile.ts`): 4-bit cardinal autotile bitmask calculation ($0..15$).
+* Unit tests in `tests/unit/math.spec.ts`, `tests/unit/input.spec.ts`, and `tests/unit/world.spec.ts` (64 total tests passing).
+
+**Gate:**
+* `npm run typecheck` ✔
+* `npm run lint` ✔ (0 warnings)
+* `npm run test:unit` ✔ (64/64 passing)
+
+**Next.** Phase 3: Visual System, Audio Pipeline & Companion FSM.

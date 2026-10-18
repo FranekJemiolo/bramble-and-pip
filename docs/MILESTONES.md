@@ -8,7 +8,7 @@ Legend: ☐ not started · ◐ in progress · ☑ done
 
 ---
 
-## Phase 0 — Architectural documentation & milestone gating ☐
+## Phase 0 — Architectural documentation & milestone gating ☑
 
 **Deliverables**
 * `docs/VISION.md`, `docs/ARCHITECTURE.md`, `docs/MILESTONES.md`, `docs/JOURNAL.md` (entry `[0001]`).
@@ -19,7 +19,7 @@ Legend: ☐ not started · ◐ in progress · ☑ done
 
 ---
 
-## Phase 1 — Repository foundation, tooling & CI/CD ☐
+## Phase 1 — Repository foundation, tooling & CI/CD ☑
 
 **Deliverables**
 * Vite + TS strict project; deps: `phaser`, `easystarjs`, `pdfmake`, `workbox-window`,
@@ -37,7 +37,7 @@ Legend: ☐ not started · ◐ in progress · ☑ done
 
 ---
 
-## Phase 2 — Engine runtime, tolerant input & math core ☐
+## Phase 2 — Engine runtime, tolerant input & math core ☑
 
 **Deliverables**
 `IntegerScaler`, `KinematicMovementController` (6 px corner slide), `PixelPerfectCameraController`
@@ -53,7 +53,7 @@ magnetic snapping (80 px, 200 ms cubic ease-out), `BezierTraceTracker` + `WaxCra
 
 ---
 
-## Phase 3 — Visual system, audio pipeline & companion FSM ☐
+## Phase 3 — Visual system, audio pipeline & companion FSM ◐
 
 **Deliverables**
 Palette + `PaletteGrader` (sunset/night), `IndexedImage`, 5 × 7 pixel font, procedural sprites/tiles,
