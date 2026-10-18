@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { BASE_WIDTH, INPUT } from '../core/constants';
+import { BASE_WIDTH } from '../core/constants';
 import { eventBus } from '../core/EventBus';
 import type { CampaignManager } from '../core/campaign/CampaignManager';
 import { ParentDashboard } from '../ui/ParentDashboard';
+import { HowToPlayModal } from '../ui/HowToPlayModal';
 
 
 export class SatchelUIScene extends Phaser.Scene {
@@ -36,31 +37,44 @@ export class SatchelUIScene extends Phaser.Scene {
       this.slotContainers.push(container);
     }
 
+    // How-To-Play Guide Modal
+    const howToPlay = new HowToPlayModal();
+
     // Sketchbook button in top-left corner
-    const sketchBtn = this.add.container(28, 24);
-    const btnBg = this.add.rectangle(0, 0, INPUT.BUTTON_ART_PX * 0.6, INPUT.BUTTON_ART_PX * 0.6, 0x4B6B4E);
+    const sketchBtn = this.add.container(26, 24);
+    const btnBg = this.add.rectangle(0, 0, 26, 22, 0x4B6B4E);
     btnBg.setStrokeStyle(2, 0x2A3E2C);
     const btnLabel = this.add.text(0, 0, 'DRAW', {
       fontFamily: 'monospace',
-      fontSize: '8px',
+      fontSize: '7px',
       color: '#FFFFFF',
     }).setOrigin(0.5);
 
     sketchBtn.add([btnBg, btnLabel]);
-    btnBg.setInteractive(
-      new Phaser.Geom.Rectangle(-INPUT.BUTTON_HIT_PX / 4, -INPUT.BUTTON_HIT_PX / 4, INPUT.BUTTON_HIT_PX / 2, INPUT.BUTTON_HIT_PX / 2),
-      Phaser.Geom.Rectangle.Contains
-    );
-
-    btnBg.on('pointerdown', () => {
+    btnBg.setInteractive().on('pointerdown', () => {
       this.scene.pause('WorldScene');
       this.scene.launch('SketchbookScene');
     });
 
+    // Guide / Tutorial button
+    const guideBtn = this.add.container(56, 24);
+    const guideBg = this.add.rectangle(0, 0, 26, 22, 0x3A546E);
+    guideBg.setStrokeStyle(2, 0x1A232A);
+    const guideLabel = this.add.text(0, 0, 'GUIDE', {
+      fontFamily: 'monospace',
+      fontSize: '7px',
+      color: '#FAF6E8',
+    }).setOrigin(0.5);
+
+    guideBtn.add([guideBg, guideLabel]);
+    guideBg.setInteractive().on('pointerdown', () => {
+      howToPlay.open();
+    });
+
     // Parent Dashboard button for adult oversight & printable guides
     const parentDashboard = new ParentDashboard(this.campaign);
-    const parentBtn = this.add.container(62, 24);
-    const parentBg = this.add.rectangle(0, 0, INPUT.BUTTON_ART_PX * 0.6, INPUT.BUTTON_ART_PX * 0.6, 0x8C5832);
+    const parentBtn = this.add.container(86, 24);
+    const parentBg = this.add.rectangle(0, 0, 26, 22, 0x8C5832);
     parentBg.setStrokeStyle(2, 0x5C4033);
     const parentLabel = this.add.text(0, 0, 'ADULT', {
       fontFamily: 'monospace',
@@ -69,17 +83,13 @@ export class SatchelUIScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     parentBtn.add([parentBg, parentLabel]);
-    parentBg.setInteractive(
-      new Phaser.Geom.Rectangle(-INPUT.BUTTON_HIT_PX / 4, -INPUT.BUTTON_HIT_PX / 4, INPUT.BUTTON_HIT_PX / 2, INPUT.BUTTON_HIT_PX / 2),
-      Phaser.Geom.Rectangle.Contains
-    );
-
-    parentBg.on('pointerdown', () => {
+    parentBg.setInteractive().on('pointerdown', () => {
       parentDashboard.open();
     });
 
     if (typeof window !== 'undefined') {
       (window as unknown as { __OPEN_PARENT_DASHBOARD__?: () => void }).__OPEN_PARENT_DASHBOARD__ = () => parentDashboard.open();
+      (window as unknown as { __OPEN_GUIDE__?: () => void }).__OPEN_GUIDE__ = () => howToPlay.open();
     }
 
     // Session clock text in top-center

@@ -24,6 +24,8 @@ import { NonReaderDialogueBox } from '../ui/NonReaderDialogueBox';
 import { eventBus } from '../core/EventBus';
 import type { Vec2 } from '../core/math';
 
+import { audioManager } from '../core/audio/AcousticAudioManager';
+
 export interface GameStateInspection {
   player: { x: number; y: number; facing: Facing };
   pip: { x: number; y: number; state: string };
@@ -32,6 +34,26 @@ export interface GameStateInspection {
   sessionElapsedSeconds: number;
   isBedtime: boolean;
   satchelCount: number;
+}
+
+export interface InteractiveAnimal {
+  kind: 'hedgehog' | 'duckling' | 'sparrow' | 'rabbit' | 'badger';
+  x: number;
+  y: number;
+  sprite: Phaser.GameObjects.Sprite;
+  name: string;
+  sightWords: string[];
+  pictogramKey: string;
+}
+
+export interface CollectibleItem {
+  id: string;
+  name: string;
+  description: string;
+  pictogramKey: string;
+  x: number;
+  y: number;
+  sprite: Phaser.GameObjects.Sprite;
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -55,6 +77,20 @@ export class WorldScene extends Phaser.Scene {
   private sessionElapsedSeconds = 0;
   private isBedtime = false;
   private isSunsetTriggered = false;
+
+  private animals: InteractiveAnimal[] = [];
+  private collectibles: CollectibleItem[] = [];
+  private lastAnimalTalkTime = 0;
+  private stepSoundTimer = 0;
+  private kalimbaStep = 0;
+
+  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+  private wasdKeys?: {
+    up: Phaser.Input.Keyboard.Key;
+    down: Phaser.Input.Keyboard.Key;
+    left: Phaser.Input.Keyboard.Key;
+    right: Phaser.Input.Keyboard.Key;
+  };
 
   // Dialogue Box GameObjects
   private dialogueContainer!: Phaser.GameObjects.Container;
@@ -97,6 +133,26 @@ export class WorldScene extends Phaser.Scene {
     this.textureBank.register('tile_watermill', TileGenerator.generateCabinProp('wall'));
     this.textureBank.register('tile_lilypad', TileGenerator.generateLilyPad(3));
 
+    // 4. Animal sprites
+    this.textureBank.register('animal_hedgehog', SpriteGenerator.generateAnimal('hedgehog'));
+    this.textureBank.register('animal_duckling', SpriteGenerator.generateAnimal('duckling'));
+    this.textureBank.register('animal_sparrow', SpriteGenerator.generateAnimal('sparrow'));
+    this.textureBank.register('animal_rabbit', SpriteGenerator.generateAnimal('rabbit'));
+    this.textureBank.register('animal_badger', SpriteGenerator.generateAnimal('badger'));
+
+    // 5. Nature item icons
+    this.textureBank.register('item_acorn', SpriteGenerator.generateItemIcon('acorn'));
+    this.textureBank.register('item_pinecone', SpriteGenerator.generateItemIcon('pinecone'));
+    this.textureBank.register('item_leaf_oak', SpriteGenerator.generateItemIcon('leaf_oak'));
+    this.textureBank.register('item_lantern', SpriteGenerator.generateItemIcon('lantern'));
+
+    // 6. Cabin props
+    this.textureBank.register('tile_cabin_wall', TileGenerator.generateCabinProp('wall'));
+    this.textureBank.register('tile_cabin_door', TileGenerator.generateCabinProp('door'));
+    this.textureBank.register('tile_cabin_bed', TileGenerator.generateCabinProp('bed'));
+    this.textureBank.register('tile_cabin_hearth', TileGenerator.generateCabinProp('hearth'));
+    this.textureBank.register('tile_cabin_window', TileGenerator.generateCabinProp('window'));
+
     // Upload baked textures into Phaser
     for (const key of [
       'ranger_down_0', 'ranger_down_1', 'ranger_down_2', 'ranger_down_3',
@@ -106,6 +162,9 @@ export class WorldScene extends Phaser.Scene {
       'pip_FOLLOWING_0', 'pip_FOLLOWING_1', 'pip_FOLLOWING_2', 'pip_FOLLOWING_3',
       'pip_IDLE_CURIOUS_0', 'pip_INSPECTING_0', 'pip_YAWNING_0', 'pip_SLEEPING_0',
       'tile_grass', 'tile_dirt', 'tile_water', 'tile_tree', 'tile_watermill', 'tile_lilypad',
+      'animal_hedgehog', 'animal_duckling', 'animal_sparrow', 'animal_rabbit', 'animal_badger',
+      'item_acorn', 'item_pinecone', 'item_leaf_oak', 'item_lantern',
+      'tile_cabin_wall', 'tile_cabin_door', 'tile_cabin_bed', 'tile_cabin_hearth', 'tile_cabin_window',
     ]) {
       this.textureBank.uploadToPhaser(this, key);
     }
@@ -150,6 +209,20 @@ export class WorldScene extends Phaser.Scene {
     });
     this.setupInputHandlers();
 
+    // Setup keyboard movement (WASD and arrow keys)
+    if (this.input.keyboard) {
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.wasdKeys = this.input.keyboard.addKeys({
+        up: Phaser.Input.Keyboard.KeyCodes.W,
+        down: Phaser.Input.Keyboard.KeyCodes.S,
+        left: Phaser.Input.Keyboard.KeyCodes.A,
+        right: Phaser.Input.Keyboard.KeyCodes.D,
+      }) as typeof this.wasdKeys;
+    }
+
+    // Spawn interactive woodland animals and nature collectibles
+    this.spawnWorldEntities();
+
     // Create dialogue UI container
     this.createDialogueBoxUI();
 
@@ -169,6 +242,7 @@ export class WorldScene extends Phaser.Scene {
         words: [...ch.sightWords],
       });
       this.updateDialogueBoxUI();
+      audioManager.playPipChirrup();
     });
   }
 
@@ -182,11 +256,21 @@ export class WorldScene extends Phaser.Scene {
         const isGrove = (x >= 22 && y <= 6);
         const isMill = (x === 17 && y >= 14 && y <= 16);
 
-        const isSolid = isBorder || isRiver || isGrove || isMill;
+        // Ranger Cabin footprint at (x: 2..6, y: 2..5)
+        const isCabinNorthWall = y === 2 && x >= 2 && x <= 6;
+        const isCabinWestWall = x === 2 && y >= 2 && y <= 5;
+        const isCabinEastWall = x === 6 && y >= 2 && y <= 5;
+        const isCabinSouthWall = y === 5 && (x === 2 || x === 3 || x === 5 || x === 6);
+        const isCabinBed = x === 3 && y === 3;
+        const isCabinHearth = x === 5 && y === 3;
+        const isCabinSolid = isCabinNorthWall || isCabinWestWall || isCabinEastWall || isCabinSouthWall || isCabinBed || isCabinHearth;
+
+        const isSolid = isBorder || isRiver || isGrove || isMill || isCabinSolid;
         cells[y * this.mapTilesX + x] = isSolid ? 1 : 0;
 
         const px = x * this.tileSize;
         const py = y * this.tileSize;
+
         if (isRiver) {
           this.add.image(px, py, 'tile_water').setOrigin(0, 0);
         } else if (isGrove || isBorder) {
@@ -195,6 +279,16 @@ export class WorldScene extends Phaser.Scene {
           this.add.image(px, py, 'tile_watermill').setOrigin(0, 0);
         } else if (x === 19 && (y === 10 || y === 11)) {
           this.add.image(px, py, 'tile_lilypad').setOrigin(0, 0);
+        } else if (x === 4 && y === 2) {
+          this.add.image(px, py, 'tile_cabin_window').setOrigin(0, 0);
+        } else if (isCabinBed) {
+          this.add.image(px, py, 'tile_cabin_bed').setOrigin(0, 0);
+        } else if (isCabinHearth) {
+          this.add.image(px, py, 'tile_cabin_hearth').setOrigin(0, 0);
+        } else if (x === 4 && y === 5) {
+          this.add.image(px, py, 'tile_cabin_door').setOrigin(0, 0);
+        } else if (isCabinNorthWall || isCabinWestWall || isCabinEastWall || isCabinSouthWall) {
+          this.add.image(px, py, 'tile_cabin_wall').setOrigin(0, 0);
         } else {
           this.add.image(px, py, (x + y) % 2 === 0 ? 'tile_grass' : 'tile_dirt').setOrigin(0, 0);
         }
@@ -202,6 +296,106 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.collisionGrid = new CollisionGrid(this.mapTilesX, this.mapTilesY, cells);
+  }
+
+  private spawnWorldEntities(): void {
+    // 1. Interactive Woodland Animals
+    const animalDefs: Array<Omit<InteractiveAnimal, 'sprite'>> = [
+      {
+        kind: 'hedgehog',
+        x: 10 * 16,
+        y: 14 * 16,
+        name: 'Little Hedgehog',
+        sightWords: ['SEE', 'THE', 'SPIKES'],
+        pictogramKey: 'hedgehog',
+      },
+      {
+        kind: 'duckling',
+        x: 21 * 16,
+        y: 10 * 16,
+        name: 'Wild Duckling',
+        sightWords: ['SWIM', 'IN', 'STREAM'],
+        pictogramKey: 'duckling',
+      },
+      {
+        kind: 'sparrow',
+        x: 7 * 16,
+        y: 18 * 16,
+        name: 'Forest Sparrow',
+        sightWords: ['FLY', 'UP', 'HIGH'],
+        pictogramKey: 'sparrow',
+      },
+      {
+        kind: 'rabbit',
+        x: 25 * 16,
+        y: 14 * 16,
+        name: 'Snowshoe Rabbit',
+        sightWords: ['HOP', 'ON', 'MOSS'],
+        pictogramKey: 'rabbit',
+      },
+      {
+        kind: 'badger',
+        x: 24 * 16,
+        y: 20 * 16,
+        name: 'Digging Badger',
+        sightWords: ['DIG', 'THE', 'EARTH'],
+        pictogramKey: 'badger',
+      },
+    ];
+
+    for (const def of animalDefs) {
+      const sprite = this.add.sprite(def.x, def.y, `animal_${def.kind}`).setDepth(8);
+      this.tweens.add({
+        targets: sprite,
+        y: def.y - 2,
+        duration: 1200 + ((def.x * 37) % 600),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+      this.animals.push({ ...def, sprite });
+    }
+
+    // 2. Collectible Nature Items
+    const itemDefs: Array<Omit<CollectibleItem, 'sprite'>> = [
+      {
+        id: 'leaf_oak',
+        name: 'Golden Oak Leaf',
+        description: 'Crisp autumn oak leaf',
+        pictogramKey: 'leaf_oak',
+        x: 12 * 16,
+        y: 10 * 16,
+      },
+      {
+        id: 'acorn',
+        name: 'Forest Acorn',
+        description: 'Smooth brown acorn from the grand oak',
+        pictogramKey: 'acorn',
+        x: 14 * 16,
+        y: 17 * 16,
+      },
+      {
+        id: 'pinecone',
+        name: 'Pinecone',
+        description: 'Fragrant pinecone from the high ridge',
+        pictogramKey: 'pinecone',
+        x: 24 * 16,
+        y: 8 * 16,
+      },
+    ];
+
+    for (const def of itemDefs) {
+      const sprite = this.add.sprite(def.x, def.y, `item_${def.id}`).setDepth(7);
+      this.tweens.add({
+        targets: sprite,
+        y: def.y - 3,
+        duration: 1500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Quad.easeInOut',
+      });
+      this.collectibles.push({ ...def, sprite });
+    }
   }
 
   private setupInputHandlers(): void {
@@ -215,12 +409,14 @@ export class WorldScene extends Phaser.Scene {
         );
         if (nav && nav.length > 0) {
           this.currentWaypoints = nav;
+          audioManager.playKalimba(this.kalimbaStep++);
         }
       }
     });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (this.dialogueBox.isOpen) {
+        audioManager.playWoodblock();
         if (this.dialogueBox.advance()) {
           this.hideDialogueBoxUI();
         }
@@ -303,25 +499,50 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
-    // Kinematic waypoint navigation
+    // Kinematic waypoint navigation or keyboard input
     const prevX = this.playerBody.x;
     const prevY = this.playerBody.y;
     let isMoving = false;
 
-    const nextWp = this.currentWaypoints[0];
-    if (nextWp) {
-      const dx = nextWp.x - this.playerBody.x;
-      const dy = nextWp.y - this.playerBody.y;
-      const distToWp = Math.hypot(dx, dy);
+    // Check keyboard input
+    let keyDx = 0;
+    let keyDy = 0;
+    if (this.cursors || this.wasdKeys) {
+      if (this.cursors?.left.isDown || this.wasdKeys?.left.isDown) keyDx -= 1;
+      if (this.cursors?.right.isDown || this.wasdKeys?.right.isDown) keyDx += 1;
+      if (this.cursors?.up.isDown || this.wasdKeys?.up.isDown) keyDy -= 1;
+      if (this.cursors?.down.isDown || this.wasdKeys?.down.isDown) keyDy += 1;
+    }
 
-      if (distToWp < 3) {
-        this.currentWaypoints.shift();
-      } else {
-        const res = this.movementController.step(this.playerBody, { x: dx, y: dy }, dt, this.collisionGrid);
-        isMoving = res.moved;
-      }
+    if (keyDx !== 0 || keyDy !== 0) {
+      this.currentWaypoints = [];
+      const res = this.movementController.step(this.playerBody, { x: keyDx, y: keyDy }, dt, this.collisionGrid);
+      isMoving = res.moved;
     } else {
-      this.movementController.step(this.playerBody, { x: 0, y: 0 }, dt, this.collisionGrid);
+      const nextWp = this.currentWaypoints[0];
+      if (nextWp) {
+        const dx = nextWp.x - this.playerBody.x;
+        const dy = nextWp.y - this.playerBody.y;
+        const distToWp = Math.hypot(dx, dy);
+
+        if (distToWp < 3) {
+          this.currentWaypoints.shift();
+        } else {
+          const res = this.movementController.step(this.playerBody, { x: dx, y: dy }, dt, this.collisionGrid);
+          isMoving = res.moved;
+        }
+      } else {
+        this.movementController.step(this.playerBody, { x: 0, y: 0 }, dt, this.collisionGrid);
+      }
+    }
+
+    // Step sound
+    if (isMoving) {
+      this.stepSoundTimer += dt;
+      if (this.stepSoundTimer >= 0.38) {
+        this.stepSoundTimer = 0;
+        audioManager.playKalimba(this.kalimbaStep++);
+      }
     }
 
     // Pip Companion update
@@ -355,9 +576,53 @@ export class WorldScene extends Phaser.Scene {
     const scroll = this.cameraController.update(this.playerBody.x, this.playerBody.y, dt);
     this.cameras.main.setScroll(scroll.x, scroll.y);
 
-    // Check Hotspots when player moved
+    // Check Hotspots, Collectibles, and Animal Proximity when player moved
     if (prevX !== this.playerBody.x || prevY !== this.playerBody.y) {
       this.checkHotspots();
+      this.checkCollectiblePickups();
+      this.checkAnimalEncounters();
+    }
+  }
+
+  private checkCollectiblePickups(): void {
+    for (let i = this.collectibles.length - 1; i >= 0; i--) {
+      const item = this.collectibles[i]!;
+      const dist = Math.hypot(this.playerBody.x - item.x, this.playerBody.y - item.y);
+      if (dist < 18) {
+        const added = this.campaign.addItem({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          pictogramKey: item.pictogramKey,
+        });
+        if (added) {
+          audioManager.playWaterBubble();
+          item.sprite.destroy();
+          this.collectibles.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  private checkAnimalEncounters(): void {
+    const now = Date.now();
+    if (now - this.lastAnimalTalkTime < 7000 || this.dialogueBox.isOpen) return;
+
+    for (const animal of this.animals) {
+      const dist = Math.hypot(this.playerBody.x - animal.x, this.playerBody.y - animal.y);
+      if (dist < 26) {
+        this.lastAnimalTalkTime = now;
+        this.pipCompanion.onPlayerInspect();
+        audioManager.playPipChirrup();
+        this.dialogueBox.open({
+          speaker: animal.name,
+          pictogramKey: animal.pictogramKey,
+          text: `You meet ${animal.name}!`,
+          words: [...animal.sightWords],
+        });
+        this.updateDialogueBoxUI();
+        break;
+      }
     }
   }
 
@@ -394,6 +659,7 @@ export class WorldScene extends Phaser.Scene {
           words: [...nextCh.sightWords],
         });
         this.updateDialogueBoxUI();
+        audioManager.playSuccessChord();
       },
     });
   }

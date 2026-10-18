@@ -89,6 +89,10 @@ export class PipCompanion {
     this.inspectingTimerSec = durationSec;
   }
 
+  onPlayerInspect(durationSec = 3.0): void {
+    this.inspectTarget(durationSec);
+  }
+
   /**
    * Updates Pip's movement, animation frame, and behavioral state machine.
    * @param isPlayerMoving Whether player is currently in motion

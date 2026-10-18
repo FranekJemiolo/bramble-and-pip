@@ -312,6 +312,52 @@ ambiguous or internally inconsistent.
 **Project Status:**
 All phases, architectural invariants, pedagogical guardrails, and technical specifications are 100% complete and fully verified.
 
+---
+
+### [0010] 2026-10-18 — Phase 9: Acoustic Web Audio Manager, In-Game Field Manual, Interactive Wildlife & Visual Documentation
+
+**Context:** Fulfilling the live audio rendering, tutorial guidance, overworld animal interaction, and visual documentation requirements. Connecting procedural audio synthesis to all in-game gameplay events, providing an accessible in-game how-to-play manual, populating the Whispering Woods with interactive wildlife and collectible treasures, and capturing real-world screenshots for GitHub documentation.
+
+**Decisions & Enhancements:**
+* **Procedural Acoustic Audio Engine (`src/core/audio/AcousticAudioManager.ts`):**
+  - Pre-bakes 5 tuned acoustic instruments using Web Audio API buffer synthesis:
+    - *Pentatonic Kalimba:* 5 soft bell-like tines (C4, D4, E4, G4, A4) with sine + triangle harmonics and 400ms decay.
+    - *Woodblock Clicks:* 2 natural resonating hollow wood percussions (800Hz / 1200Hz) with 45ms decay for footsteps and interface tokens.
+    - *Water Bubble Chimes:* 3 ascending arpeggio droplets (900Hz, 1200Hz, 1600Hz) with smooth frequency sweeps for item collection.
+    - *Pip Chirrups:* 2-tone melodic puppy vocalizations (520Hz $\to$ 780Hz) expressing companion curiosity and discoveries.
+    - *Nylon Guitar Chords:* Resonant 3-oscillator string strum with gentle detuning for puzzle completions.
+  - Global acoustic safety filter capped strictly at 4.5 kHz with an exponential sunset low-pass sweep down to 2.2 kHz over 180 seconds.
+  - Subscribed to `GlobalEventBus` events (`item:collected`, `puzzle:solved`, `sunset:start`, `bedtime:lock`, `audio:sfx`, and player step pacing).
+* **In-Game Field Manual (`src/ui/HowToPlayModal.ts`):**
+  - Rendered in `#overlay-root` semantic DOM with parchment aesthetic, accessible via the new "GUIDE" wood-token button on the Satchel bar.
+  - Offers visual, non-reader-accessible pictorial guides for walking, Pip's companion reactions, collecting nature items, solving stepping stone and waterwheel puzzles, using the wax crayon sketchbook, and gentle bedtime resting.
+* **Overworld Interactive Wildlife & Nature Items (`src/scenes/WorldScene.ts`):**
+  - Added Ranger Cabin interior tiles (wooden wall, cozy bed, hearth with warm fire glow, door, window) in the northwest forest corner.
+  - Added dual navigation scheme: touch/mouse tap-to-move A* pathfinding + keyboard WASD / Arrow key movement with 6px kinematic corner-sliding.
+  - Populated 5 interactive woodland animal encounters with proximity triggers and soft speech bubbles:
+    - 🦔 *Hedgehog:* Snuffling near the woodpile.
+    - 🦆 *Duckling:* Paddling gently near the lily pads.
+    - 🐦 *Sparrow:* Perched on a trail boulder.
+    - 🐇 *Rabbit:* Nibbling wild clover near the meadow.
+    - 🦡 *Badger:* Burrowing near the fallen mossy logs.
+  - Placed collectible nature treasures (*oak leaves*, *acorns*, *pinecones*) with gentle bobbing animations that collect into the wooden Satchel.
+* **Companion Pip Reactive Awareness (`src/core/companion/PipCompanion.ts`):**
+  - Pip detects nearby animals and nature items, wagging tail, pricking ears, displaying speech thought bubbles, and vocalizing cheerful chirrups.
+* **Real-World Screenshot Pipeline (`scripts/capture-screenshots.mjs`):**
+  - Automated headless Playwright script launching the production PWA bundle and capturing 7 authentic in-game screenshots at native integer scaling:
+    - `whispering_woods.png`, `field_manual.png`, `parent_dashboard.png`, `nature_sketchbook.png`, `mossy_gearbox.png`, `stepping_stones.png`, `bedtime_resting.png`.
+  - Embedded into `README.md` alongside a comprehensive Field Guide & Tutorial for both children and parents/educators.
+
+**Verification & Deployment:**
+* `npm run typecheck` ✔ (0 errors)
+* `npm run lint` ✔ (0 errors, 0 warnings with `--max-warnings=0`)
+* `npm run audit:egress` ✔ (Verified zero network egress across source, bundle, and CSP)
+* `npm run test:unit` ✔ (114/114 passing across 10 test suites)
+* `npm run test:e2e` ✔ (10/10 passing across Desktop Chrome and Galaxy Tab S4 emulators)
+* `npm run build` ✔ (Clean dual-entry PWA production build)
+* Deployed live to GitHub Pages: [https://franekjemiolo.github.io/bramble-and-pip/](https://franekjemiolo.github.io/bramble-and-pip/)
+
+
 
 
 
