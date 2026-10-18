@@ -7,10 +7,14 @@ import { SatchelUIScene } from './scenes/SatchelUIScene';
 import { PuzzleOverlayScene } from './scenes/PuzzleOverlayScene';
 import { SketchbookScene } from './scenes/SketchbookScene';
 import { BedtimeScene } from './scenes/BedtimeScene';
+import { registerContextLossRecovery } from './core/world/contextRecovery';
+
 
 import {
   buildWinterTrackSpotterPDFDefinition,
   buildAutumnLeafPressPDFDefinition,
+  buildJuniorRangerCertificatePDFDefinition,
+  buildScavengerHuntGuidePDFDefinition,
   exportPDFToBuffer,
 } from './export/pdfGenerator';
 
@@ -27,12 +31,17 @@ export const game = new Phaser.Game({
   scene: [WorldScene, SatchelUIScene, PuzzleOverlayScene, SketchbookScene, BedtimeScene],
 });
 
+registerContextLossRecovery(game);
+
 if (typeof window !== 'undefined') {
   (window as unknown as { __EXPORT_PDF__: unknown }).__EXPORT_PDF__ = {
     buildWinterTrackSpotterPDFDefinition,
     buildAutumnLeafPressPDFDefinition,
+    buildJuniorRangerCertificatePDFDefinition,
+    buildScavengerHuntGuidePDFDefinition,
     exportPDFToBuffer,
   };
 }
+
 
 registerServiceWorker();

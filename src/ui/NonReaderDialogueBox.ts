@@ -8,6 +8,21 @@ export interface DialoguePayload {
   words: string[];
 }
 
+export interface PictogramDialogueSequence {
+  dialogueId: string;
+  voiceAudioKey: string;
+  voiceDurationMs: number;
+  hapticFeedbackPattern?: number[];
+  sightWords: string;
+  pictograms: Array<{
+    textureKey: string;
+    displayDelayMs: number;
+    pulseAnimation: boolean;
+  }>;
+  uiActionUnlock?: string;
+}
+
+
 export class NonReaderDialogueBox {
   private active = false;
   private currentSpeaker = '';

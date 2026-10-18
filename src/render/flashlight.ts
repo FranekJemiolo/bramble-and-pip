@@ -97,3 +97,6 @@ export class FlashlightMask {
     return this.mask;
   }
 }
+
+export { FlashlightMask as FlashlightManager };
+

@@ -65,3 +65,18 @@ export const eventBus = new GlobalEventBus();
 if (typeof window !== 'undefined') {
   (window as unknown as { __EVENT_BUS__: GlobalEventBus }).__EVENT_BUS__ = eventBus;
 }
+
+export enum SatchelEvents {
+  DPAD_MOVE = 'satchel:dpad_move',
+  DPAD_STOP = 'satchel:dpad_stop',
+  TOOL_EQUIPPED = 'satchel:tool_equipped',
+  PIP_TAP = 'satchel:pip_tap',
+}
+
+export enum WorldEvents {
+  PIP_MOOD_CHANGE = 'world:pip_mood_change',
+  DISCOVERY_TRIGGERED = 'world:discovery_triggered',
+  SUNSET_WARNING = 'world:sunset_warning',
+  BEDTIME_REACHED = 'world:bedtime_reached',
+}
+

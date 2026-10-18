@@ -45,3 +45,20 @@ export class AudioFormat {
     this.cachedExtension = null;
   }
 }
+
+/**
+ * Phaser multi-format loader registry for universal dual-codec audio delivery (.ogg and .m4a).
+ */
+export class AudioPreloadRegistry {
+  public static loadAcousticAsset(
+    scene: { load: { audio: (key: string, urls: string[]) => void } },
+    key: string,
+    basePath: string
+  ): void {
+    scene.load.audio(key, [
+      `${basePath}/${key}.ogg`,
+      `${basePath}/${key}.m4a`,
+    ]);
+  }
+}
+

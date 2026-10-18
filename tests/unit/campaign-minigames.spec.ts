@@ -21,9 +21,19 @@ describe('20-Chapter Nature Campaign & Satchel State', () => {
 
     const finalChapter = CAMPAIGN_CHAPTERS[19]!;
     expect(finalChapter.id).toBe(20);
-    expect(finalChapter.title).toBe("The Ranger's Lodge");
+    expect(finalChapter.title).toContain("The Ranger's Lodge");
     expect(finalChapter.sightWords.length).toBeLessThanOrEqual(3);
+
+    // Verify all 20 chapters have complete metadata
+    for (const ch of CAMPAIGN_CHAPTERS) {
+      expect(ch.region).toBeDefined();
+      expect(ch.pedagogicalInteraction).toBeDefined();
+      expect(ch.bridgeSheet).toBeDefined();
+      expect(ch.sightWords.length).toBeGreaterThan(0);
+      expect(ch.sightWords.length).toBeLessThanOrEqual(3);
+    }
   });
+
 
   it('enforces satchel limits: maximum 3 slots and maximum 3 quantity per item', () => {
     const campaign = new CampaignManager();

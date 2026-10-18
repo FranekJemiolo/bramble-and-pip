@@ -28,6 +28,10 @@ export class ParentalGateService {
     return Math.max(0, Math.ceil((this.lockedUntilMs - Date.now()) / 1000));
   }
 
+  get activeChallenge(): Challenge | null {
+    return this.currentChallenge;
+  }
+
   /**
    * Generates a word-math multiplication problem, e.g. "SEVEN TIMES SIX".
    */

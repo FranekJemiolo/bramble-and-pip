@@ -1,9 +1,17 @@
+export interface SessionEventLog {
+  timestamp: number;
+  eventType: 'DISCOVERY' | 'PUZZLE_SOLVE' | 'OBSERVATION' | 'SEASON_ADVANCE';
+  targetEntity: string;
+  details: Record<string, unknown>;
+}
+
 export class ParentInsightService {
   /**
    * Generates localized offline conversation prompts for parents to discuss real-world
    * nature observations with their child at the dinner table or bedtime.
    * Zero network egress, zero tracking.
    */
+
   static generateConversationStarters(
     completedChapterIds: readonly number[],
     satchelItemIds: readonly string[]

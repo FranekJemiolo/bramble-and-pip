@@ -18,113 +18,151 @@ export function ensureVfsInitialized(): void {
 /**
  * Builds the Winter Track Spotter Nature Observation Guide definition.
  */
-export function buildWinterTrackSpotterPDFDefinition(): TDocumentDefinitions {
+export function buildWinterTrackSpotterPDFDefinition(rangerName = 'Young Explorer'): TDocumentDefinitions {
   return {
     pageSize: 'A4',
-    pageMargins: [40, 40, 40, 40],
+    pageOrientation: 'portrait',
+    pageMargins: [32, 32, 32, 32],
+    defaultStyle: {
+      color: '#3B3B3B',
+      fontSize: 10,
+    },
     content: [
+      { text: 'BRAMBLE & PIP: JUNIOR RANGER FIELD COMPANION', style: 'header' },
+      { text: `Ranger: ${rangerName} | Guide: Winter Footprint Detective`, style: 'meta' },
       {
-        text: 'BRAMBLE & PIP — WINTER NATURE GUIDE',
-        style: 'header',
-      },
-      {
-        text: 'Wildlife Track Spotter & Outdoor Exploration Chart',
-        style: 'subheader',
-      },
-      {
-        text: 'Put on your warm mittens, step into the quiet woods or nearby park with an adult, and look for animal footprints in the snow or damp soil!',
-        margin: [0, 10, 0, 20],
+        text: 'Fold along the dotted line to take this pocket guide on your walk!',
+        style: 'instruction',
       },
       {
         table: {
-          widths: ['25%', '50%', '25%'],
+          widths: ['50%', '50%'],
+          heights: [240, 240],
           body: [
-            [
-              { text: 'ANIMAL', style: 'tableHeader' },
-              { text: 'TRACK CHARACTERISTICS', style: 'tableHeader' },
-              { text: 'SPOTTED [ ✓ ]', style: 'tableHeader' },
-            ],
-            [
-              { text: 'Roe Deer', bold: true },
-              { text: 'Two slender crescent-shaped cloven hoof prints. Often found near low shrubbery and berry bushes.' },
-              { text: '[   ]', alignment: 'center' },
-            ],
-            [
-              { text: 'Eurasian Hedgehog', bold: true },
-              { text: 'Five small clawed toes spread like tiny stars. Look around hedgerows and leaf piles.' },
-              { text: '[   ]', alignment: 'center' },
-            ],
-            [
-              { text: 'Tawny Owl', bold: true },
-              { text: 'Three forward talon impressions, one rear spur. Look under roosting pine branches.' },
-              { text: '[   ]', alignment: 'center' },
-            ],
-            [
-              { text: 'Red Fox', bold: true },
-              { text: 'Neat single-file straight path. Four oval toe pads with distinct claw dots ahead.' },
-              { text: '[   ]', alignment: 'center' },
-            ],
-          ],
-        },
-      },
-      {
-        text: 'FIELD SKETCHING FRAME',
-        style: 'subheader',
-        margin: [0, 25, 0, 10],
-      },
-      {
-        table: {
-          widths: ['100%'],
-          heights: [180],
-          body: [
+            // Row 1: Rabbit & Songbird
             [
               {
-                text: 'Draw your favorite track or nature discovery inside this box with your pencil or wax crayon.',
-                color: '#7F8C8D',
-                alignment: 'center',
-                margin: [0, 75, 0, 0],
+                stack: [
+                  { text: 'CARD A: THE HOPPING RABBIT', style: 'cardTitle' },
+                  { text: 'Pattern: Large back feet leap ahead of front paws.', style: 'cardSub' },
+                  {
+                    canvas: [
+                      // Back paws (large ovals)
+                      { type: 'ellipse', x: 45, y: 35, r1: 10, r2: 20, color: '#2B2B2B' },
+                      { type: 'ellipse', x: 80, y: 35, r1: 10, r2: 20, color: '#2B2B2B' },
+                      // Front paws (small dots)
+                      { type: 'ellipse', x: 110, y: 65, r1: 6, r2: 8, color: '#555555' },
+                      { type: 'ellipse', x: 128, y: 65, r1: 6, r2: 8, color: '#555555' },
+                      // Leap path indicator
+                      {
+                        type: 'line',
+                        x1: 15,
+                        y1: 85,
+                        x2: 140,
+                        y2: 85,
+                        dash: { length: 4, space: 4 },
+                        lineWidth: 1.5,
+                        lineColor: '#888888',
+                      },
+                    ],
+                  },
+                  { text: 'Task: Trace the leap-frog pattern with a crayon.', style: 'taskText' },
+                ],
+                margin: [8, 8, 8, 8],
+              },
+              {
+                stack: [
+                  { text: 'CARD B: THE TINY SONGBIRD', style: 'cardTitle' },
+                  { text: 'Pattern: Delicate Y-shaped hops near bushes.', style: 'cardSub' },
+                  {
+                    canvas: [
+                      // Bird print 1
+                      { type: 'line', x1: 50, y1: 25, x2: 50, y2: 60, lineWidth: 2.5, lineColor: '#2B2B2B' },
+                      { type: 'line', x1: 50, y1: 45, x2: 32, y2: 20, lineWidth: 2.5, lineColor: '#2B2B2B' },
+                      { type: 'line', x1: 50, y1: 45, x2: 68, y2: 20, lineWidth: 2.5, lineColor: '#2B2B2B' },
+                      // Bird print 2 (offset)
+                      { type: 'line', x1: 100, y1: 40, x2: 100, y2: 75, lineWidth: 2.5, lineColor: '#2B2B2B' },
+                      { type: 'line', x1: 100, y1: 60, x2: 82, y2: 35, lineWidth: 2.5, lineColor: '#2B2B2B' },
+                      { type: 'line', x1: 100, y1: 60, x2: 118, y2: 35, lineWidth: 2.5, lineColor: '#2B2B2B' },
+                    ],
+                  },
+                  { text: 'Task: Look under low pine branches for tiny hops.', style: 'taskText' },
+                ],
+                margin: [8, 8, 8, 8],
+              },
+            ],
+            // Row 2: Badger & DIY Stamping
+            [
+              {
+                stack: [
+                  { text: 'CARD C: THE DIGGING BADGER', style: 'cardTitle' },
+                  { text: 'Pattern: Five toes with sharp claw pricks.', style: 'cardSub' },
+                  {
+                    canvas: [
+                      // Main palm pad
+                      { type: 'ellipse', x: 75, y: 55, r1: 24, r2: 16, color: '#2B2B2B' },
+                      // 5 Claw toes
+                      { type: 'ellipse', x: 45, y: 28, r1: 4.5, r2: 4.5, color: '#2B2B2B' },
+                      { type: 'ellipse', x: 60, y: 20, r1: 5, r2: 5, color: '#2B2B2B' },
+                      { type: 'ellipse', x: 75, y: 18, r1: 5, r2: 5, color: '#2B2B2B' },
+                      { type: 'ellipse', x: 90, y: 20, r1: 5, r2: 5, color: '#2B2B2B' },
+                      { type: 'ellipse', x: 105, y: 28, r1: 4.5, r2: 4.5, color: '#2B2B2B' },
+                    ],
+                  },
+                  { text: 'Task: Find digging claw marks near damp soil banks.', style: 'taskText' },
+                ],
+                margin: [8, 8, 8, 8],
+              },
+              {
+                stack: [
+                  { text: 'CARD D: DIY TRACK-MAKING', style: 'cardTitle' },
+                  { text: 'Make your own tracks in soft snow or sand!', style: 'cardSub' },
+                  {
+                    canvas: [
+                      // Hand stamp diagram
+                      { type: 'rect', x: 30, y: 20, w: 45, h: 40, r: 8, color: '#666666' },
+                      { type: 'ellipse', x: 95, y: 30, r1: 5, r2: 5, color: '#444444' },
+                      { type: 'ellipse', x: 110, y: 30, r1: 5, r2: 5, color: '#444444' },
+                      { type: 'ellipse', x: 125, y: 30, r1: 5, r2: 5, color: '#444444' },
+                    ],
+                  },
+                  {
+                    text: 'Step 1: Press your fist into the snow for the heavy pad.\nStep 2: Dab finger-tips to stamp toes!',
+                    style: 'taskText',
+                  },
+                ],
+                margin: [8, 8, 8, 8],
               },
             ],
           ],
+        },
+        layout: {
+          hLineWidth: () => 1.5,
+          vLineWidth: () => 1.5,
+          hLineColor: () => '#9E9E9E',
+          vLineColor: () => '#9E9E9E',
+          hLineStyle: () => ({ dash: { length: 5, space: 4 } }),
+          vLineStyle: () => ({ dash: { length: 5, space: 4 } }),
         },
       },
       {
         text: 'Offline vector printable — Zero network egress — Bramble & Pip pedagogical adventure',
         style: 'footer',
-        margin: [0, 30, 0, 0],
+        margin: [0, 20, 0, 0],
       },
     ],
     styles: {
-      header: {
-        fontSize: 18,
-        bold: true,
-        color: '#2C3E50',
-        alignment: 'center',
-      },
-      subheader: {
-        fontSize: 13,
-        bold: true,
-        color: '#4B6B4E',
-        alignment: 'center',
-        margin: [0, 4, 0, 6],
-      },
-      tableHeader: {
-        bold: true,
-        fillColor: '#EAE6DF',
-        color: '#2C3E50',
-      },
-      footer: {
-        fontSize: 8,
-        color: '#95A5A6',
-        alignment: 'center',
-      },
-    },
-    defaultStyle: {
-      fontSize: 10,
-      color: '#2C3E50',
+      header: { fontSize: 13, bold: true, alignment: 'center', margin: [0, 0, 0, 4] },
+      meta: { fontSize: 9, alignment: 'center', margin: [0, 0, 0, 4] },
+      instruction: { fontSize: 8, italics: true, alignment: 'center', margin: [0, 0, 0, 10] },
+      cardTitle: { fontSize: 9.5, bold: true, color: '#1A1A1A', margin: [0, 0, 0, 2] },
+      cardSub: { fontSize: 7.5, italics: true, color: '#4A4A4A', margin: [0, 0, 0, 6] },
+      taskText: { fontSize: 7.5, color: '#333333', margin: [0, 6, 0, 0] },
+      footer: { fontSize: 8, color: '#95A5A6', alignment: 'center' },
     },
   };
 }
+
 
 /**
  * Builds the Autumn Leaf-Press Guide definition.

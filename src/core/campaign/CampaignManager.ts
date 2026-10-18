@@ -37,6 +37,10 @@ export class CampaignManager {
     return this.completedChapters.size;
   }
 
+  get completedChapterIds(): number[] {
+    return Array.from(this.completedChapters);
+  }
+
   get totalChapters(): number {
     return CAMPAIGN_CHAPTERS.length;
   }

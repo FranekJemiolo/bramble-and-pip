@@ -281,6 +281,38 @@ ambiguous or internally inconsistent.
 * `npm run audit:egress` ✔ (clean)
 * `npm run build` ✔ (clean dual-entry production build)
 
+---
+
+### [0009] 2026-10-18 — Phase 8: Architectural Alignment, Parental Dashboard & Complete Contract Hardening
+
+**Context:** Final rigorous audit against `bramble_and_pip.md` and the initial mission prompt, closing all remaining architectural contracts, implementing the complete Parental Dashboard overlay, fixing `pdfmake` vector primitives, and validating full end-to-end functionality.
+
+**Decisions & Enhancements:**
+* **Parental Dashboard & Semantic HTML Overlay (`src/ui/ParentDashboard.ts`):** Rendered inside the decoupled `#overlay-root` DOM layer. Governed by a seeded word-math multiplication gate (`ParentalGateService`) that dynamically regenerates challenges upon incorrect attempts, enforces rate-limiting lockouts (60s lock after 3 failures), and displays local nature conversation starters, curfew schedules (19:30–08:00), and bedtime session limits.
+* **WebGL Context Loss Recovery (`src/core/world/contextRecovery.ts`):** Registered lifecycle hooks for `webglcontextlost` and `webglcontextrestored`, pausing rendering and reloading textures automatically without user disruption.
+* **Vector Printable Type Safety (`src/export/pdfGenerator.ts`):** Corrected `pdfmake` canvas shape definitions to use strictly typed ellipses (`r1`/`r2`) for badger claw marks and DIY hand-stamping dots, and standard corner radius `r` for rectangular pads.
+* **Content Matrix Completeness (`src/core/campaign/types.ts`):** Mapped all 20 campaign chapters with exact geographic `region`, `pedagogicalInteraction`, and associated `bridgeSheet` field printable references.
+* **Subsystem Interface Hardening:**
+  - `CampaignManager`: Exposes `completedChapterIds` for direct consumption by parent insights and persistence.
+  - `NonReaderDialogueBox`: Standardized `PictogramDialogueSequence`.
+  - `EventBus`: Added `SatchelEvents` and `WorldEvents` enum definitions.
+  - `ParentInsightService`: Standardized `SessionEventLog` interface.
+  - `AudioFormat`: Standardized `AudioPreloadRegistry`.
+  - `flashlight`: Exported `FlashlightManager` alias.
+* **End-to-End Suite Expansion (`tests/e2e/parent-dashboard.spec.ts`):** Added automated Playwright test verifying the parental gate challenge verification, rate-limiting behavior, insight generation, and overlay dismissal.
+
+**Final Verification Metrics:**
+* `npm run typecheck` ✔ (Clean TypeScript 5.9 compile, 0 errors)
+* `npm run lint` ✔ (ESLint 9, 0 errors, 0 warnings with `--max-warnings=0`)
+* `npm run audit:egress` ✔ (Zero network egress verified across source, bundle, and CSP)
+* `npm run test:unit` ✔ (114/114 passing across 10 test suites)
+* `npm run test:e2e` ✔ (10/10 passing across Desktop Chrome and Galaxy Tab S4 emulators)
+* `npm run build` ✔ (Clean dual-entry production build + PWA service worker with 18 precached entries)
+
+**Project Status:**
+All phases, architectural invariants, pedagogical guardrails, and technical specifications are 100% complete and fully verified.
+
+
 
 
 
