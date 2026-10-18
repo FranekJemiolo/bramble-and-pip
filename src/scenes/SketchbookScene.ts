@@ -20,8 +20,13 @@ export class SketchbookScene extends Phaser.Scene {
   create(): void {
     eventBus.emit('pdf:export', { documentType: 'view_sketchbook' });
 
-    // Sketchbook background (Cream linen 15)
-    this.add.rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT, 0xF4EFEA).setOrigin(0, 0);
+    // Sketchbook background - use canonical desk pixel art with pencils, pinecones, crayons if available!
+    if (this.textures.exists('sketchbook_bg')) {
+      const deskBg = this.add.image(0, 0, 'sketchbook_bg').setOrigin(0, 0);
+      deskBg.setDisplaySize(BASE_WIDTH, BASE_HEIGHT);
+    } else {
+      this.add.rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT, 0xF4EFEA).setOrigin(0, 0);
+    }
 
     // Header bar
     this.add.rectangle(BASE_WIDTH / 2, 16, BASE_WIDTH, 32, 0xEAE6DF);
@@ -83,8 +88,10 @@ export class SketchbookScene extends Phaser.Scene {
     const drawX = 10;
     const drawY = 60;
 
-    const paperBorder = this.add.rectangle(BASE_WIDTH / 2, drawY + drawHeight / 2, drawWidth + 4, drawHeight + 4, 0x1A232A);
-    paperBorder.setStrokeStyle(2, 0x6E4A2F);
+    if (!this.textures.exists('sketchbook_bg')) {
+      const paperBorder = this.add.rectangle(BASE_WIDTH / 2, drawY + drawHeight / 2, drawWidth + 4, drawHeight + 4, 0x1A232A);
+      paperBorder.setStrokeStyle(2, 0x6E4A2F);
+    }
 
     if (this.textures.exists('sketch_canvas')) {
       this.textures.remove('sketch_canvas');
@@ -149,8 +156,12 @@ export class SketchbookScene extends Phaser.Scene {
 
   private clearCanvas(): void {
     if (!this.canvasCtx) return;
-    this.canvasCtx.fillStyle = '#FAF7F2';
-    this.canvasCtx.fillRect(0, 0, 300, 190);
+    if (this.textures.exists('sketchbook_bg')) {
+      this.canvasCtx.clearRect(0, 0, 300, 190);
+    } else {
+      this.canvasCtx.fillStyle = '#FAF7F2';
+      this.canvasCtx.fillRect(0, 0, 300, 190);
+    }
     this.canvasTexture.refresh();
   }
 

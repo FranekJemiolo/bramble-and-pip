@@ -357,6 +357,47 @@ All phases, architectural invariants, pedagogical guardrails, and technical spec
 * `npm run build` ✔ (Clean dual-entry PWA production build)
 * Deployed live to GitHub Pages: [https://franekjemiolo.github.io/bramble-and-pip/](https://franekjemiolo.github.io/bramble-and-pip/)
 
+---
+
+### [0011] 2026-10-18 — Canonical 16-Color Visual Overhaul & Complete 20-Chapter Four-Season Progression
+
+**Context:** Overhauled graphics and UI to match the visual fidelity, artwork, and tactile controls from the canonical reference mockups (`bramble_and_pip.md`), and finalized the playable 20-chapter campaign spanning all four seasons.
+
+**Decisions & Implementation:**
+* **Canonical Asset Pipeline & Palette Quantization (`scripts/prepare-canonical-assets.mjs` & `src/render/canonicalAssets.ts`):**
+  - Extracted authentic 16-color pixel art backdrops ($320 \times 192$) and the tactile wooden Ranger Satchel ($320 \times 96$) from canonical design mockups.
+  - Processed all assets through `process-sprite.js`, enforcing strict binary alpha and quantizing colors strictly to the 16-color "Whispering Woods" master palette using human-perceptual Euclidean distance ($2\Delta R^2 + 4\Delta G^2 + 3\Delta B^2$).
+  - Pre-encoded assets as base64 data URIs in `src/render/canonicalAssets.ts` (141 KB) to guarantee zero network egress (`connect-src 'none'`).
+* **BootScene Texture Pre-decoding Architecture (`src/scenes/BootScene.ts`):**
+  - Resolved asynchronous Phaser loader race conditions by introducing an initial `BootScene` that preloads and verifies all canonical base64 textures via HTMLImageElement decoding before launching `WorldScene`.
+* **Tactile Ranger Satchel Controller (`src/scenes/SatchelUIScene.ts`):**
+  - Rendered authentic carved wooden satchel interface across the bottom 96px of the screen ($320 \times 96$).
+  - Interactive 4-way wooden D-Pad (`▲, ▼, ◄, ►`) with tactile press highlights, acoustic woodblock audio feedback, and kinematic step dispatching.
+  - Interactive Pip Cameo Medallion firing `pip:interact` events with cheerful pentatonic kalimba chords and companion chirrups.
+  - Tactile Green Look/Talk button (`action:look_talk`) for proximity dialogue and inspect interactions.
+  - Tactile Orange Pack button (`action:pack`) opening the Ranger Pack drawer with Map, Draw, Guide, and Adult settings.
+* **Complete 20-Chapter Progression Engine & Trail Map (`src/ui/ChapterMapModal.ts`):**
+  - Implemented interactive Whispering Woods Trail Map overlay categorizing all 20 chapters across the 4 seasons (Spring Ch 1–5, Summer Ch 6–10, Autumn Ch 11–15, Winter Ch 16–20).
+  - Displays chapter objectives, region landmarks, sight words, completed star badges, and direct travel buttons.
+* **Canonical Scene Backdrops in WorldScene (`src/scenes/WorldScene.ts`):**
+  - Integrated dynamic scene backdrops: *The Ranger's Lodge* (Ch 20 celebration with sleeping bear, harvest table, foxes, and beavers), *The Pine Ridge* (Ch 16 winter trail with rabbit tracks, chickadees, badger burrow, and flashlight cone), *The Mossy Gearbox* (Ch 7 waterwheel), *Mossy Hollow* (Ch 8 glowing mushrooms), and *The Whispering Woods* (Ch 1–5).
+  - Added wooden location banner signpost in top-left corner and parchment speech scroll at the bottom of the world viewport.
+* **Nature Sketchbook & Bedtime Overhaul (`src/scenes/SketchbookScene.ts` & `src/scenes/BedtimeScene.ts`):**
+  - Integrated the illustrated nature field journal desk background with crayons and printable guides.
+  - Overhauled bedtime resting screen to display the warm nocturnal Ranger Cabin with gentle hearth embers and sleeping animals.
+* **Visual Verification & Screenshot Capture (`scripts/capture-screenshots.mjs`):**
+  - Captured authentic screenshots of all scenes: `whispering_woods.png`, `ranger_lodge.png`, `pine_ridge.png`, `mossy_gearbox.png`, `trail_map.png`, `field_manual.png`, `parent_dashboard.png`, `nature_sketchbook.png`, and `bedtime_resting.png`.
+  - Updated `README.md` with visual showcase and full chapter documentation.
+
+**Gate:**
+* `npm run typecheck` ✔ (0 errors)
+* `npm run lint` ✔ (0 warnings, 0 errors)
+* `npm run audit:egress` ✔ (Clean zero network egress)
+* `npm run test:unit` ✔ (114/114 passing across 10 test suites)
+* `npm run test:e2e` ✔ (10/10 passing across Desktop Chrome and Tablet emulators)
+* `npm run build` ✔ (Clean production build)
+
+
 
 
 

@@ -34,11 +34,51 @@ async function main() {
   await page.waitForSelector('#game-container canvas');
   await page.waitForTimeout(1000);
 
-  // 1. Whispering Woods exploration
+  // 1. Whispering Woods exploration (Spring - Ch 1)
   console.log('Capturing whispering_woods.png...');
   await page.screenshot({ path: path.join(OUT_DIR, 'whispering_woods.png') });
 
-  // 2. Open How-to-Play Guide
+  // 2. The Ranger's Lodge Celebration (Chapter 20)
+  console.log('Capturing ranger_lodge.png...');
+  await page.evaluate(() => {
+    const fn = (window).__SWITCH_CHAPTER__;
+    if (fn) fn(20);
+  });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(OUT_DIR, 'ranger_lodge.png') });
+
+  // 3. The Pine Ridge (Winter - Chapter 16)
+  console.log('Capturing pine_ridge.png...');
+  await page.evaluate(() => {
+    const fn = (window).__SWITCH_CHAPTER__;
+    if (fn) fn(16);
+  });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(OUT_DIR, 'pine_ridge.png') });
+
+  // 4. The Mossy Gearbox (Summer - Chapter 7)
+  console.log('Capturing mossy_gearbox.png...');
+  await page.evaluate(() => {
+    const fn = (window).__SWITCH_CHAPTER__;
+    if (fn) fn(7);
+  });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(OUT_DIR, 'mossy_gearbox.png') });
+
+  // 5. Open Chapter Trail Map Modal
+  console.log('Capturing trail_map.png...');
+  await page.evaluate(() => {
+    const fn = (window).__OPEN_CHAPTER_MAP__;
+    if (fn) fn();
+  });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(OUT_DIR, 'trail_map.png') });
+
+  // Close map
+  await page.locator('#map-close-btn').click();
+  await page.waitForTimeout(400);
+
+  // 6. Open In-Game Field Manual
   console.log('Capturing field_manual.png...');
   await page.evaluate(() => {
     const fn = (window).__OPEN_GUIDE__;
@@ -51,7 +91,7 @@ async function main() {
   await page.locator('#guide-done').click();
   await page.waitForTimeout(400);
 
-  // 3. Open Parent Dashboard
+  // 7. Open Parent Dashboard
   console.log('Capturing parent_dashboard.png...');
   await page.evaluate(() => {
     const fn = (window).__OPEN_PARENT_DASHBOARD__;
@@ -59,7 +99,7 @@ async function main() {
   });
   await page.waitForTimeout(500);
 
-  // Solve gate to capture full dashboard
+  // Solve math gate to show parent insights
   const wordMap = {
     ZERO: 0, ONE: 1, TWO: 2, THREE: 3, FOUR: 4,
     FIVE: 5, SIX: 6, SEVEN: 7, EIGHT: 8, NINE: 9,
@@ -78,77 +118,38 @@ async function main() {
   await page.locator('#dash-done').click();
   await page.waitForTimeout(400);
 
-  // 4. Sketchbook Scene
+  // 8. Nature Sketchbook
   console.log('Capturing nature_sketchbook.png...');
   await page.evaluate(() => {
     const game = (window).__GAME__;
     if (game) {
-      const world = game.scene.getScene('WorldScene');
-      world.scene.pause();
-      world.scene.launch('SketchbookScene');
+      game.scene.stop('WorldScene');
+      game.scene.stop('SatchelUI');
+      game.scene.start('SketchbookScene');
     }
   });
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(OUT_DIR, 'nature_sketchbook.png') });
 
-  // Return to world
-  await page.evaluate(() => {
-    const game = (window).__GAME__;
-    if (game) {
-      const world = game.scene.getScene('WorldScene');
-      world.scene.stop('SketchbookScene');
-      world.scene.resume();
-    }
-  });
-  await page.waitForTimeout(400);
-
-  // 5. Mossy Gearbox Puzzle Overlay
-  console.log('Capturing mossy_gearbox.png...');
-  await page.evaluate(() => {
-    const game = (window).__GAME__;
-    if (game) {
-      const world = game.scene.getScene('WorldScene');
-      world.scene.pause();
-      world.scene.launch('PuzzleOverlayScene', { puzzleType: 'mossy_gearbox' });
-    }
-  });
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(OUT_DIR, 'mossy_gearbox.png') });
-
-  // 6. Stepping Stones Puzzle Overlay
-  console.log('Capturing stepping_stones.png...');
-  await page.evaluate(() => {
-    const game = (window).__GAME__;
-    if (game) {
-      const world = game.scene.getScene('WorldScene');
-      world.scene.stop('PuzzleOverlayScene');
-      world.scene.launch('PuzzleOverlayScene', { puzzleType: 'stepping_stones' });
-    }
-  });
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(OUT_DIR, 'stepping_stones.png') });
-
-  // 7. Bedtime Scene
+  // 9. Bedtime Resting Screen
   console.log('Capturing bedtime_resting.png...');
   await page.evaluate(() => {
     const game = (window).__GAME__;
     if (game) {
-      const world = game.scene.getScene('WorldScene');
-      world.scene.stop('PuzzleOverlayScene');
-      world.scene.pause();
-      world.scene.launch('BedtimeScene');
+      game.scene.stop('SketchbookScene');
+      game.scene.start('BedtimeScene');
     }
   });
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(OUT_DIR, 'bedtime_resting.png') });
 
-  console.log('All screenshots captured successfully!');
+  console.log('All screenshots captured successfully in docs/images/!');
   await browser.close();
   server.kill();
   process.exit(0);
 }
 
 main().catch((err) => {
-  console.error('Screenshot error:', err);
+  console.error('Screenshot capture failed:', err);
   process.exit(1);
 });

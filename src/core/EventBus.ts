@@ -4,6 +4,10 @@ export interface GameEvents {
   'player:move': { x: number; y: number; facing: string };
   'chapter:start': { chapterId: number; season: string; title: string };
   'chapter:complete': { chapterId: number };
+  'chapter:selected': { chapterId: number };
+  'input:dpad': { direction: 'up' | 'down' | 'left' | 'right' };
+  'action:look_talk': void;
+  'pip:interact': void;
   'item:collected': { id: string; name: string; count: number };
   'puzzle:start': { puzzleId: string };
   'puzzle:solved': { puzzleId: string };

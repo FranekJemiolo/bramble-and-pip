@@ -13,55 +13,56 @@ export class BedtimeScene extends Phaser.Scene {
   create(): void {
     eventBus.emit('bedtime:lock');
 
-    // Deep nocturnal background (Shadow umber 0 / Deep bark 2)
-    this.add.rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT, 0x1A232A).setOrigin(0, 0);
+    if (this.textures.exists('ranger_lodge_bg')) {
+      // 1. Canonical Ranger Lodge pixel art backdrop
+      const lodgeBg = this.add.image(0, 0, 'ranger_lodge_bg').setOrigin(0, 0);
+      lodgeBg.setDisplaySize(BASE_WIDTH, 192);
 
-    // Lodge floor rug (River clay 8)
-    this.add.rectangle(BASE_WIDTH / 2, 210, 240, 70, 0x6E4A2F);
-    this.add.rectangle(BASE_WIDTH / 2, 210, 220, 54, 0xC49A6C);
+      // Nocturnal moonlit twilight overlay across lodge
+      const nightOverlay = this.add.rectangle(0, 0, BASE_WIDTH, 192, 0x1A232A, 0.42).setOrigin(0, 0);
+      nightOverlay.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
-    // Warm Fireplace Hearth in center-top
-    this.add.rectangle(BASE_WIDTH / 2, 110, 80, 80, 0x423832); // Stone chimney
-    this.add.rectangle(BASE_WIDTH / 2, 125, 48, 50, 0x1A232A); // Firebox
+      // Warm Fireplace flickering ember overlay
+      this.fireGlow = this.add.rectangle(102, 108, 28, 20, 0xE5C158, 0.35);
 
-    // Fire glow
-    this.fireGlow = this.add.rectangle(BASE_WIDTH / 2, 130, 36, 36, 0xD48038);
-    this.add.rectangle(BASE_WIDTH / 2, 135, 20, 20, 0xE5C158); // Yellow ember core
+      // "Zzz..." above sleeping bear and Pip
+      this.add.text(75, 78, 'Zzz...', {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#FAF6E8',
+      });
+      this.add.text(142, 116, 'zzz...', {
+        fontFamily: 'monospace',
+        fontSize: '7px',
+        color: '#E5C158',
+      });
 
-    // Window showing night sky with stars
-    const winX = 60;
-    const winY = 80;
-    this.add.rectangle(winX, winY, 44, 54, 0x3A546E); // Night blue
-    this.add.rectangle(winX, winY, 44, 54).setStrokeStyle(3, 0x6E4A2F); // Window frame
-    // Crossbars
-    this.add.line(winX, winY, 0, -27, 0, 27, 0x6E4A2F).setLineWidth(2);
-    this.add.line(winX, winY, -22, 0, 22, 0, 0x6E4A2F).setLineWidth(2);
+      // Bottom night satchel panel (y: 192..288)
+      this.add.rectangle(0, 192, BASE_WIDTH, 96, 0x1A232A).setOrigin(0, 0);
+      this.add.rectangle(BASE_WIDTH / 2, 192, BASE_WIDTH - 16, 2, 0x6E4A2F);
+    } else {
+      // Fallback
+      this.add.rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT, 0x1A232A).setOrigin(0, 0);
+      this.fireGlow = this.add.rectangle(BASE_WIDTH / 2, 130, 36, 36, 0xD48038);
+    }
 
-    // Sleeping Pip on the rug
-    this.add.circle(BASE_WIDTH / 2 + 30, 215, 12, 0x9B4E28); // Pip body
-    this.add.circle(BASE_WIDTH / 2 + 30, 216, 7, 0xC49A6C); // Belly
-    this.add.text(BASE_WIDTH / 2 + 45, 195, 'Zzz...', {
-      fontFamily: 'monospace',
-      fontSize: '8px',
-      color: '#F4EFEA',
-    });
-
-    // Reassuring messages
-    this.add.text(BASE_WIDTH / 2, 26, 'TIME TO REST', {
+    // Reassuring bedtime banners
+    this.add.text(BASE_WIDTH / 2, 212, '🌙 TIME TO REST 💤', {
       fontFamily: 'monospace',
       fontSize: '11px',
+      fontStyle: 'bold',
       color: '#E5C158',
     }).setOrigin(0.5);
 
-    this.add.text(BASE_WIDTH / 2, 260, 'The forest is sleeping peacefully.', {
+    this.add.text(BASE_WIDTH / 2, 236, 'The forest is sleeping peacefully.', {
       fontFamily: 'monospace',
-      fontSize: '7px',
-      color: '#EAE6DF',
+      fontSize: '8px',
+      color: '#FAF6E8',
     }).setOrigin(0.5);
 
-    this.add.text(BASE_WIDTH / 2, 274, 'See you tomorrow, little explorer!', {
+    this.add.text(BASE_WIDTH / 2, 256, 'See you tomorrow, little explorer! 🌲⭐', {
       fontFamily: 'monospace',
-      fontSize: '7px',
+      fontSize: '8px',
       color: '#D48038',
     }).setOrigin(0.5);
   }

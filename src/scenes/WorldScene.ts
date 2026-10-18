@@ -1,9 +1,6 @@
 import Phaser from 'phaser';
 import {
-  BASE_HEIGHT,
   BASE_WIDTH,
-  DIALOGUE,
-  MOVEMENT,
   SESSION,
 } from '../core/constants';
 import {
@@ -20,11 +17,11 @@ import { TextureBank } from '../render/TextureBank';
 import { SpriteGenerator } from '../render/sprites';
 import { TileGenerator } from '../render/tiles';
 import { CampaignManager } from '../core/campaign/CampaignManager';
-import { NonReaderDialogueBox } from '../ui/NonReaderDialogueBox';
 import { eventBus } from '../core/EventBus';
 import type { Vec2 } from '../core/math';
-
 import { audioManager } from '../core/audio/AcousticAudioManager';
+import { registerCanonicalTextures } from '../render/canonicalAssets';
+import { ChapterMapModal } from '../ui/ChapterMapModal';
 
 export interface GameStateInspection {
   player: { x: number; y: number; facing: Facing };
@@ -59,7 +56,6 @@ export interface CollectibleItem {
 export class WorldScene extends Phaser.Scene {
   private textureBank = new TextureBank();
   private campaign = new CampaignManager();
-  private dialogueBox = new NonReaderDialogueBox();
 
   private movementController!: KinematicMovementController;
   private cameraController!: PixelPerfectCameraController;
@@ -68,7 +64,7 @@ export class WorldScene extends Phaser.Scene {
   private inputManager!: TolerantInputManager;
   private collisionGrid!: CollisionGrid;
 
-  private playerBody: KinBody = { x: 128, y: 128, facing: 'down' };
+  private playerBody: KinBody = { x: 120, y: 130, facing: 'down' };
   private currentWaypoints: Vec2[] = [];
 
   private playerSprite!: Phaser.GameObjects.Sprite;
@@ -80,9 +76,7 @@ export class WorldScene extends Phaser.Scene {
 
   private animals: InteractiveAnimal[] = [];
   private collectibles: CollectibleItem[] = [];
-  private lastAnimalTalkTime = 0;
   private stepSoundTimer = 0;
-  private kalimbaStep = 0;
 
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasdKeys?: {
@@ -92,40 +86,50 @@ export class WorldScene extends Phaser.Scene {
     right: Phaser.Input.Keyboard.Key;
   };
 
-  // Dialogue Box GameObjects
+  // Canonical Scene Background GameObject (320x192)
+  private backdropImage!: Phaser.GameObjects.Image;
+
+  // Carved wooden location banner in top-left
+  private locationSignText!: Phaser.GameObjects.Text;
+  private chapterMapModal!: ChapterMapModal;
+
+  // Dialogue Banner GameObjects (Parchment scroll across bottom of world viewport)
   private dialogueContainer!: Phaser.GameObjects.Container;
-  private dialogueWordsText!: Phaser.GameObjects.Text;
-  private dialoguePictogramRect!: Phaser.GameObjects.Rectangle;
+  private dialogueText!: Phaser.GameObjects.Text;
+  private dialogueAvatarText!: Phaser.GameObjects.Text;
+
+  // Flashlight light cone
+  private flashlightGraphics?: Phaser.GameObjects.Graphics;
 
   // Map dimensions
-  private readonly mapTilesX = 30;
-  private readonly mapTilesY = 24;
-  private readonly tileSize = 16;
+  private readonly mapTilesX = 20;
+  private readonly mapTilesY = 12;
 
   constructor() {
     super('WorldScene');
   }
 
-  preload(): void {
+  async preload(): Promise<void> {
     this.bakeProceduralTextures();
+    await registerCanonicalTextures(this);
   }
 
   private bakeProceduralTextures(): void {
-    // 1. Ranger walk cycles
+    // Ranger walk cycles
     for (const dir of ['down', 'up', 'left', 'right'] as const) {
       for (let f = 0; f < 4; f++) {
         this.textureBank.register(`ranger_${dir}_${f}`, SpriteGenerator.generateRangerFrame(dir, f));
       }
     }
 
-    // 2. Pip frames
+    // Pip frames
     for (const state of ['FOLLOWING', 'IDLE_CURIOUS', 'INSPECTING', 'YAWNING', 'SLEEPING'] as const) {
       for (let f = 0; f < 4; f++) {
         this.textureBank.register(`pip_${state}_${f}`, SpriteGenerator.generatePipFrame(state, f));
       }
     }
 
-    // 3. Environment tiles
+    // Environment and props
     this.textureBank.register('tile_grass', TileGenerator.generateAutotile(15, 5, 4));
     this.textureBank.register('tile_dirt', TileGenerator.generateAutotile(15, 8, 3));
     this.textureBank.register('tile_water', TileGenerator.generateWaterTile(0));
@@ -133,358 +137,410 @@ export class WorldScene extends Phaser.Scene {
     this.textureBank.register('tile_watermill', TileGenerator.generateCabinProp('wall'));
     this.textureBank.register('tile_lilypad', TileGenerator.generateLilyPad(3));
 
-    // 4. Animal sprites
+    // Animal sprites
     this.textureBank.register('animal_hedgehog', SpriteGenerator.generateAnimal('hedgehog'));
     this.textureBank.register('animal_duckling', SpriteGenerator.generateAnimal('duckling'));
     this.textureBank.register('animal_sparrow', SpriteGenerator.generateAnimal('sparrow'));
     this.textureBank.register('animal_rabbit', SpriteGenerator.generateAnimal('rabbit'));
     this.textureBank.register('animal_badger', SpriteGenerator.generateAnimal('badger'));
 
-    // 5. Nature item icons
+    // Nature items
     this.textureBank.register('item_acorn', SpriteGenerator.generateItemIcon('acorn'));
     this.textureBank.register('item_pinecone', SpriteGenerator.generateItemIcon('pinecone'));
     this.textureBank.register('item_leaf_oak', SpriteGenerator.generateItemIcon('leaf_oak'));
     this.textureBank.register('item_lantern', SpriteGenerator.generateItemIcon('lantern'));
 
-    // 6. Cabin props
-    this.textureBank.register('tile_cabin_wall', TileGenerator.generateCabinProp('wall'));
-    this.textureBank.register('tile_cabin_door', TileGenerator.generateCabinProp('door'));
-    this.textureBank.register('tile_cabin_bed', TileGenerator.generateCabinProp('bed'));
-    this.textureBank.register('tile_cabin_hearth', TileGenerator.generateCabinProp('hearth'));
-    this.textureBank.register('tile_cabin_window', TileGenerator.generateCabinProp('window'));
-
-    // Upload baked textures into Phaser
-    for (const key of [
-      'ranger_down_0', 'ranger_down_1', 'ranger_down_2', 'ranger_down_3',
-      'ranger_up_0', 'ranger_up_1', 'ranger_up_2', 'ranger_up_3',
-      'ranger_left_0', 'ranger_left_1', 'ranger_left_2', 'ranger_left_3',
-      'ranger_right_0', 'ranger_right_1', 'ranger_right_2', 'ranger_right_3',
-      'pip_FOLLOWING_0', 'pip_FOLLOWING_1', 'pip_FOLLOWING_2', 'pip_FOLLOWING_3',
-      'pip_IDLE_CURIOUS_0', 'pip_INSPECTING_0', 'pip_YAWNING_0', 'pip_SLEEPING_0',
-      'tile_grass', 'tile_dirt', 'tile_water', 'tile_tree', 'tile_watermill', 'tile_lilypad',
-      'animal_hedgehog', 'animal_duckling', 'animal_sparrow', 'animal_rabbit', 'animal_badger',
-      'item_acorn', 'item_pinecone', 'item_leaf_oak', 'item_lantern',
-      'tile_cabin_wall', 'tile_cabin_door', 'tile_cabin_bed', 'tile_cabin_hearth', 'tile_cabin_window',
-    ]) {
+    // Upload procedural textures
+    for (const key of this.textureBank.getKeys()) {
       this.textureBank.uploadToPhaser(this, key);
     }
   }
 
   create(): void {
-    // Build map and collision grid
-    this.buildWorldGrid();
-
-    // Controllers
-    const startX = 8 * 16;
-    const startY = 8 * 16;
-    this.playerBody = { x: startX, y: startY, facing: 'down' };
-
-    this.movementController = new KinematicMovementController({
-      walkSpeed: MOVEMENT.WALK_SPEED_PX_PER_S,
-      cornerTolerance: MOVEMENT.CORNER_SLIDE_TOLERANCE_PX,
-    });
-
-    this.pipCompanion = new PipCompanion(startX, startY);
-    this.pathfinder = new TilePathfindingManager(this.collisionGrid);
-
+    // 1. Initialize Subsystems
+    this.movementController = new KinematicMovementController();
     this.cameraController = new PixelPerfectCameraController(
       BASE_WIDTH,
-      BASE_HEIGHT,
-      this.mapTilesX * this.tileSize,
-      this.mapTilesY * this.tileSize,
-      startX,
-      startY
+      192,
+      BASE_WIDTH,
+      192,
+      this.playerBody.x,
+      this.playerBody.y
     );
-
-    // Create Sprites
-    this.playerSprite = this.add.sprite(startX, startY, 'ranger_down_0').setOrigin(0.5, 0.7);
-    this.playerSprite.setDepth(10);
-
-    this.pipSprite = this.add.sprite(startX, startY, 'pip_FOLLOWING_0').setOrigin(0.5, 0.5);
-    this.pipSprite.setDepth(9);
-
-    // Setup tolerant touch / click input
-    this.inputManager = new TolerantInputManager({
-      viewport: () => ({ width: BASE_WIDTH, height: BASE_HEIGHT }),
+    this.pipCompanion = new PipCompanion(this.playerBody.x - 16, this.playerBody.y);
+    this.chapterMapModal = new ChapterMapModal(this.campaign, (chapterId) => {
+      this.switchChapter(chapterId);
     });
-    this.setupInputHandlers();
 
-    // Setup keyboard movement (WASD and arrow keys)
-    if (this.input.keyboard) {
-      this.cursors = this.input.keyboard.createCursorKeys();
-      this.wasdKeys = this.input.keyboard.addKeys({
-        up: Phaser.Input.Keyboard.KeyCodes.W,
-        down: Phaser.Input.Keyboard.KeyCodes.S,
-        left: Phaser.Input.Keyboard.KeyCodes.A,
-        right: Phaser.Input.Keyboard.KeyCodes.D,
-      }) as typeof this.wasdKeys;
-    }
-
-    // Spawn interactive woodland animals and nature collectibles
-    this.spawnWorldEntities();
-
-    // Create dialogue UI container
-    this.createDialogueBoxUI();
-
-    // Launch Satchel UI overlay
-    this.scene.launch('SatchelUI', { campaign: this.campaign });
-
-    // Expose global test inspection hooks
-    this.exposeGlobalHooks();
-
-    // Show initial chapter prompt
-    this.time.delayedCall(500, () => {
-      const ch = this.campaign.currentChapter;
-      this.dialogueBox.open({
-        speaker: 'Pip',
-        pictogramKey: ch.pictogramKey,
-        text: ch.objective,
-        words: [...ch.sightWords],
-      });
-      this.updateDialogueBoxUI();
-      audioManager.playPipChirrup();
-    });
-  }
-
-  private buildWorldGrid(): void {
+    // 2. Setup Walkable Collision Grid (20x12 tiles)
     const cells = new Uint8Array(this.mapTilesX * this.mapTilesY);
-
     for (let y = 0; y < this.mapTilesY; y++) {
       for (let x = 0; x < this.mapTilesX; x++) {
         const isBorder = x === 0 || x === this.mapTilesX - 1 || y === 0 || y === this.mapTilesY - 1;
-        const isRiver = (x >= 18 && x <= 20) && !(y === 10 || y === 11);
-        const isGrove = (x >= 22 && y <= 6);
-        const isMill = (x === 17 && y >= 14 && y <= 16);
-
-        // Ranger Cabin footprint at (x: 2..6, y: 2..5)
-        const isCabinNorthWall = y === 2 && x >= 2 && x <= 6;
-        const isCabinWestWall = x === 2 && y >= 2 && y <= 5;
-        const isCabinEastWall = x === 6 && y >= 2 && y <= 5;
-        const isCabinSouthWall = y === 5 && (x === 2 || x === 3 || x === 5 || x === 6);
-        const isCabinBed = x === 3 && y === 3;
-        const isCabinHearth = x === 5 && y === 3;
-        const isCabinSolid = isCabinNorthWall || isCabinWestWall || isCabinEastWall || isCabinSouthWall || isCabinBed || isCabinHearth;
-
-        const isSolid = isBorder || isRiver || isGrove || isMill || isCabinSolid;
-        cells[y * this.mapTilesX + x] = isSolid ? 1 : 0;
-
-        const px = x * this.tileSize;
-        const py = y * this.tileSize;
-
-        if (isRiver) {
-          this.add.image(px, py, 'tile_water').setOrigin(0, 0);
-        } else if (isGrove || isBorder) {
-          this.add.image(px, py, 'tile_tree').setOrigin(0, 0);
-        } else if (isMill) {
-          this.add.image(px, py, 'tile_watermill').setOrigin(0, 0);
-        } else if (x === 19 && (y === 10 || y === 11)) {
-          this.add.image(px, py, 'tile_lilypad').setOrigin(0, 0);
-        } else if (x === 4 && y === 2) {
-          this.add.image(px, py, 'tile_cabin_window').setOrigin(0, 0);
-        } else if (isCabinBed) {
-          this.add.image(px, py, 'tile_cabin_bed').setOrigin(0, 0);
-        } else if (isCabinHearth) {
-          this.add.image(px, py, 'tile_cabin_hearth').setOrigin(0, 0);
-        } else if (x === 4 && y === 5) {
-          this.add.image(px, py, 'tile_cabin_door').setOrigin(0, 0);
-        } else if (isCabinNorthWall || isCabinWestWall || isCabinEastWall || isCabinSouthWall) {
-          this.add.image(px, py, 'tile_cabin_wall').setOrigin(0, 0);
-        } else {
-          this.add.image(px, py, (x + y) % 2 === 0 ? 'tile_grass' : 'tile_dirt').setOrigin(0, 0);
-        }
+        cells[y * this.mapTilesX + x] = isBorder ? 1 : 0;
       }
     }
-
     this.collisionGrid = new CollisionGrid(this.mapTilesX, this.mapTilesY, cells);
+    this.pathfinder = new TilePathfindingManager(this.collisionGrid);
+
+    // 3. Render Canonical 16-Color Scene Backdrop (320x192)
+    const bgKey = this.getBackdropKeyForChapter(this.campaign.currentChapter.id);
+    this.backdropImage = this.add.image(0, 0, bgKey).setOrigin(0, 0);
+    this.backdropImage.setDisplaySize(320, 192);
+
+    // 4. Setup Flashlight Lighting Cone
+    this.flashlightGraphics = this.add.graphics();
+    this.flashlightGraphics.setDepth(20);
+
+    // 5. Setup Character Sprites
+    this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_down_0');
+    this.playerSprite.setDepth(10);
+
+    this.pipSprite = this.add.sprite(this.playerBody.x - 16, this.playerBody.y, 'pip_FOLLOWING_0');
+    this.pipSprite.setDepth(9);
+
+    // 6. Setup Interactive Animals & Collectibles
+    this.spawnWoodlandWildlife();
+
+    // 7. Setup Carved Wooden Location Banner (Top-Left)
+    this.setupLocationSign();
+
+    // 8. Setup Dynamic Dialogue Banner (Bottom of World Viewport)
+    this.setupDialogueBanner();
+
+    // 9. Input & Controls Setup
+    this.setupInputControls();
+
+    // 10. Launch Satchel UI Overlay Scene
+    this.scene.launch('SatchelUI', { campaign: this.campaign });
+
+    // 11. Listen for Chapter & Action Events
+    this.setupEventListeners();
+
+    // 12. Display Initial Chapter Welcome Dialogue
+    this.updateChapterDialogue();
+
+    // 13. Expose state inspection for Playwright tests
+    this.exposeStateInspection();
   }
 
-  private spawnWorldEntities(): void {
-    // 1. Interactive Woodland Animals
-    const animalDefs: Array<Omit<InteractiveAnimal, 'sprite'>> = [
-      {
-        kind: 'hedgehog',
-        x: 10 * 16,
-        y: 14 * 16,
-        name: 'Little Hedgehog',
-        sightWords: ['SEE', 'THE', 'SPIKES'],
-        pictogramKey: 'hedgehog',
-      },
-      {
-        kind: 'duckling',
-        x: 21 * 16,
-        y: 10 * 16,
-        name: 'Wild Duckling',
-        sightWords: ['SWIM', 'IN', 'STREAM'],
-        pictogramKey: 'duckling',
-      },
-      {
-        kind: 'sparrow',
-        x: 7 * 16,
-        y: 18 * 16,
-        name: 'Forest Sparrow',
-        sightWords: ['FLY', 'UP', 'HIGH'],
-        pictogramKey: 'sparrow',
-      },
-      {
-        kind: 'rabbit',
-        x: 25 * 16,
-        y: 14 * 16,
-        name: 'Snowshoe Rabbit',
-        sightWords: ['HOP', 'ON', 'MOSS'],
-        pictogramKey: 'rabbit',
-      },
-      {
-        kind: 'badger',
-        x: 24 * 16,
-        y: 20 * 16,
-        name: 'Digging Badger',
-        sightWords: ['DIG', 'THE', 'EARTH'],
-        pictogramKey: 'badger',
-      },
-    ];
-
-    for (const def of animalDefs) {
-      const sprite = this.add.sprite(def.x, def.y, `animal_${def.kind}`).setDepth(8);
-      this.tweens.add({
-        targets: sprite,
-        y: def.y - 2,
-        duration: 1200 + ((def.x * 37) % 600),
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-      this.animals.push({ ...def, sprite });
+  private getBackdropKeyForChapter(chapterId: number): string {
+    if (chapterId >= 1 && chapterId <= 5) {
+      return this.textures.exists('whispering_woods_bg') ? 'whispering_woods_bg' : 'tile_grass';
     }
-
-    // 2. Collectible Nature Items
-    const itemDefs: Array<Omit<CollectibleItem, 'sprite'>> = [
-      {
-        id: 'leaf_oak',
-        name: 'Golden Oak Leaf',
-        description: 'Crisp autumn oak leaf',
-        pictogramKey: 'leaf_oak',
-        x: 12 * 16,
-        y: 10 * 16,
-      },
-      {
-        id: 'acorn',
-        name: 'Forest Acorn',
-        description: 'Smooth brown acorn from the grand oak',
-        pictogramKey: 'acorn',
-        x: 14 * 16,
-        y: 17 * 16,
-      },
-      {
-        id: 'pinecone',
-        name: 'Pinecone',
-        description: 'Fragrant pinecone from the high ridge',
-        pictogramKey: 'pinecone',
-        x: 24 * 16,
-        y: 8 * 16,
-      },
-    ];
-
-    for (const def of itemDefs) {
-      const sprite = this.add.sprite(def.x, def.y, `item_${def.id}`).setDepth(7);
-      this.tweens.add({
-        targets: sprite,
-        y: def.y - 3,
-        duration: 1500,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Quad.easeInOut',
-      });
-      this.collectibles.push({ ...def, sprite });
+    if (chapterId === 7) {
+      return this.textures.exists('mossy_gearbox_bg') ? 'mossy_gearbox_bg' : 'whispering_woods_bg';
     }
+    if (chapterId >= 6 && chapterId <= 10) {
+      return this.textures.exists('mossy_hollow_bg') ? 'mossy_hollow_bg' : 'whispering_woods_bg';
+    }
+    if (chapterId === 12) {
+      return this.textures.exists('sketchbook_bg') ? 'sketchbook_bg' : 'mossy_hollow_bg';
+    }
+    if (chapterId >= 11 && chapterId <= 15) {
+      return this.textures.exists('mossy_hollow_bg') ? 'mossy_hollow_bg' : 'whispering_woods_bg';
+    }
+    if (chapterId >= 16 && chapterId <= 19) {
+      return this.textures.exists('pine_ridge_bg') ? 'pine_ridge_bg' : 'whispering_woods_bg';
+    }
+    if (chapterId === 20) {
+      return this.textures.exists('ranger_lodge_bg') ? 'ranger_lodge_bg' : 'whispering_woods_bg';
+    }
+    return 'whispering_woods_bg';
   }
 
-  private setupInputHandlers(): void {
-    this.inputManager.subscribe((sample) => {
-      if (sample.phase === 'down') {
-        const scroll = this.cameraController.scroll();
-        const worldTarget = { x: sample.x + scroll.x, y: sample.y + scroll.y };
-        const nav = this.pathfinder.navigate(
-          { x: this.playerBody.x, y: this.playerBody.y },
-          worldTarget
-        );
-        if (nav && nav.length > 0) {
-          this.currentWaypoints = nav;
-          audioManager.playKalimba(this.kalimbaStep++);
-        }
-      }
-    });
+  private setupLocationSign(): void {
+    const container = this.add.container(12, 12);
+    container.setDepth(30);
 
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (this.dialogueBox.isOpen) {
-        audioManager.playWoodblock();
-        if (this.dialogueBox.advance()) {
-          this.hideDialogueBoxUI();
-        }
-        return;
-      }
+    // Wooden signpost backing
+    const signBg = this.add.rectangle(0, 0, 110, 20, 0xB88A58).setOrigin(0, 0);
+    signBg.setStrokeStyle(1.5, 0x3B2F2F);
+    signBg.setInteractive({ cursor: 'pointer' });
 
-      const pointerType = (p.event as PointerEvent)?.pointerType ?? 'touch';
-      this.inputManager.pointerDown({
-        id: p.id,
-        pointerType,
-        x: p.x,
-        y: p.y,
-        timeMs: Date.now(),
-      });
-    });
-
-    this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
-      const pointerType = (p.event as PointerEvent)?.pointerType ?? 'touch';
-      this.inputManager.pointerUp({
-        id: p.id,
-        pointerType,
-        x: p.x,
-        y: p.y,
-        timeMs: Date.now(),
-      });
-    });
-  }
-
-  private createDialogueBoxUI(): void {
-    this.dialogueContainer = this.add.container(0, 0).setDepth(100);
-
-    const bg = this.add.rectangle(BASE_WIDTH / 2, BASE_HEIGHT - 30, BASE_WIDTH - 20, 48, 0xF4EFEA);
-    bg.setStrokeStyle(2, 0x6E4A2F);
-
-    this.dialoguePictogramRect = this.add.rectangle(36, BASE_HEIGHT - 30, DIALOGUE.PICTOGRAM_PX, DIALOGUE.PICTOGRAM_PX, 0xC49A6C);
-    this.dialoguePictogramRect.setStrokeStyle(1, 0x2A3E2C);
-
-    this.dialogueWordsText = this.add.text(64, BASE_HEIGHT - 38, '', {
+    const signText = this.add.text(55, 10, this.campaign.currentChapter.region, {
       fontFamily: 'monospace',
-      fontSize: '9px',
-      color: '#2A3E2C',
-      fontStyle: 'bold',
+      fontSize: '7px',
+      color: '#3B2F2F',
+    }).setOrigin(0.5);
+
+    // Map pin icon on left
+    const pin = this.add.text(8, 10, '📍', { fontSize: '8px' }).setOrigin(0.5);
+
+    container.add([signBg, pin, signText]);
+
+    signBg.on('pointerdown', () => {
+      audioManager.playWoodblock();
+      this.chapterMapModal.open();
     });
 
-    this.dialogueContainer.add([bg, this.dialoguePictogramRect, this.dialogueWordsText]);
-    this.dialogueContainer.setVisible(false);
+    this.locationSignText = signText;
   }
 
-  private updateDialogueBoxUI(): void {
-    if (!this.dialogueBox.isOpen) {
-      this.hideDialogueBoxUI();
-      return;
-    }
-    this.dialogueWordsText.setText(this.dialogueBox.words.join(' '));
+  private setupDialogueBanner(): void {
+    // Sits at bottom of world viewport (y: 156..188, width: 290, height: 28)
+    const container = this.add.container(160, 172);
+    container.setDepth(40);
+
+    // Parchment speech scroll
+    const bg = this.add.rectangle(0, 0, 290, 28, 0xFAF6E8);
+    bg.setStrokeStyle(2, 0x3B2F2F);
+
+    // Speech pointer notch pointing towards characters
+    const notch = this.add.triangle(100, 14, 0, 0, 6, 6, 12, 0, 0xFAF6E8);
+    notch.setStrokeStyle(1.5, 0x3B2F2F);
+
+    // Pip / Acorn Avatar icon
+    const avatar = this.add.text(-130, 0, '🌰', { fontSize: '11px' }).setOrigin(0.5);
+
+    // Text content
+    const dialogueTxt = this.add.text(-114, 0, '', {
+      fontFamily: 'monospace',
+      fontSize: '7px',
+      color: '#3B2F2F',
+      wordWrap: { width: 245 },
+    }).setOrigin(0, 0.5);
+
+    container.add([bg, notch, avatar, dialogueTxt]);
+    this.dialogueContainer = container;
+    this.dialogueText = dialogueTxt;
+    this.dialogueAvatarText = avatar;
+  }
+
+  private showDialogue(text: string, icon = '🌰'): void {
+    this.dialogueAvatarText.setText(icon);
+    this.dialogueText.setText(text);
     this.dialogueContainer.setVisible(true);
   }
 
-  private hideDialogueBoxUI(): void {
-    this.dialogueContainer.setVisible(false);
+  private updateChapterDialogue(): void {
+    const ch = this.campaign.currentChapter;
+    let text = `Pip: ${ch.objective} (${ch.sightWords.join(' ')})`;
+
+    // Tailored dialogue matching canonical mockups
+    if (ch.id === 20) {
+      text = 'Pip: Look at everyone we helped! We are honorary junior rangers now 🎖️❤️';
+    } else if (ch.id === 16) {
+      text = "Pip: Look at those footprints in the snow! Let's trace where they go 🐾❄️";
+    } else if (ch.id === 7) {
+      text = 'Pip: We can place these wooden gears on the pegs to turn the wheel! Match the sizes ⚙️';
+    } else if (ch.id === 8) {
+      text = "Pip: Whoa! Those mushrooms glow in the dark! Let's examine them 🍄🔍";
+    } else if (ch.id === 3) {
+      text = 'Pip: Count the lily pad dots to help our duckling friends cross the brook! 🦆🐾';
+    }
+
+    this.showDialogue(text, '🌰');
+  }
+
+  private switchChapter(chapterId: number): void {
+    this.campaign.startChapter(chapterId);
+
+    // Update backdrop image
+    const bgKey = this.getBackdropKeyForChapter(chapterId);
+    if (this.textures.exists(bgKey)) {
+      this.backdropImage.setTexture(bgKey);
+      this.backdropImage.setDisplaySize(320, 192);
+    }
+
+    // Toggle overworld animal/item props based on region
+    const isForestOverworld = chapterId >= 1 && chapterId <= 5;
+    for (const c of this.collectibles) {
+      c.sprite.setVisible(isForestOverworld);
+    }
+    for (const a of this.animals) {
+      a.sprite.setVisible(isForestOverworld);
+    }
+
+    // Position characters in authentic canonical spots per chapter
+    if (chapterId === 20) {
+      // Ranger Lodge celebration
+      this.playerBody.x = 126;
+      this.playerBody.y = 126;
+      this.playerSprite.setPosition(126, 126);
+      this.pipSprite.setPosition(146, 134);
+    } else if (chapterId === 16) {
+      // The Pine Ridge winter path
+      this.playerBody.x = 122;
+      this.playerBody.y = 124;
+      this.playerSprite.setPosition(122, 124);
+      this.pipSprite.setPosition(186, 130);
+    }
+
+    // Update location sign
+    this.locationSignText.setText(this.campaign.currentChapter.region);
+
+    // Update dialogue
+    this.updateChapterDialogue();
+
+    // Trigger acoustic kalimba chord
+    audioManager.playKalimba(chapterId % 5);
+  }
+
+  private setupEventListeners(): void {
+    // Listen for chapter selection from Trail Map modal
+    eventBus.on('chapter:selected', (data: { chapterId: number }) => {
+      this.switchChapter(data.chapterId);
+    });
+
+    // D-Pad movement event from SatchelUIScene
+    eventBus.on('input:dpad', (data: { direction: 'up' | 'down' | 'left' | 'right' }) => {
+      this.handleDPadMove(data.direction);
+    });
+
+    // Look / Talk action button from SatchelUIScene
+    eventBus.on('action:look_talk', () => {
+      this.handleLookTalkAction();
+    });
+
+    // Pip cameo tap event
+    eventBus.on('pip:interact', () => {
+      this.handlePipCameoTap();
+    });
+
+    // Chapter completion event
+    eventBus.on('chapter:complete', () => {
+      this.updateChapterDialogue();
+    });
+  }
+
+  private handleDPadMove(direction: 'up' | 'down' | 'left' | 'right'): void {
+    const inputVec = {
+      x: direction === 'left' ? -1 : direction === 'right' ? 1 : 0,
+      y: direction === 'up' ? -1 : direction === 'down' ? 1 : 0,
+    };
+
+    const res = this.movementController.step(this.playerBody, inputVec, 0.1, this.collisionGrid);
+    if (res.moved) {
+      this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
+      this.pipCompanion.recordPlayerStep(this.playerBody.x, this.playerBody.y, this.playerBody.facing);
+      const targetBc = this.pipCompanion.getTargetBreadcrumb();
+      this.pipSprite.setPosition(targetBc.x, targetBc.y);
+    }
+  }
+
+  private handleLookTalkAction(): void {
+    const ch = this.campaign.currentChapter;
+
+    if (ch.id === 20) {
+      this.showDialogue('Pip: Everyone is safe and warm by the fireplace! We earned the Junior Ranger Honor! 🐻🐿️🦊', '🎖️');
+      audioManager.playKalimba(4);
+      audioManager.playPipChirrup();
+      this.campaign.completeCurrentChapter();
+      return;
+    }
+
+    if (ch.id === 16) {
+      this.showDialogue('Pip: Big back paws leap ahead of small front paws! The trail leads to the badger mound 🐾❄️', '🐇');
+      audioManager.playPipChirrup();
+      this.campaign.completeCurrentChapter();
+      return;
+    }
+
+    if (ch.id === 7) {
+      this.showDialogue('Pip: The wooden gears mesh together smoothly! The waterwheel spins! ⚙️🌊', '⚙️');
+      this.scene.pause('WorldScene');
+      this.scene.launch('MinigameGearbox');
+      return;
+    }
+
+    if (ch.id === 3) {
+      this.showDialogue('Pip: 1, 2, 3, 4, 5! All the little ducklings safely crossed the pond! 🦆🌸', '🦆');
+      this.scene.pause('WorldScene');
+      this.scene.launch('MinigameSubitizing');
+      return;
+    }
+
+    if (ch.id === 12) {
+      this.scene.pause('WorldScene');
+      this.scene.launch('SketchbookScene');
+      return;
+    }
+
+    this.showDialogue(`Pip: What a lovely day on ${ch.region}! Let's find ${ch.sightWords[0]}! 🍃`, '🌰');
+    audioManager.playPipChirrup();
+  }
+
+  private handlePipCameoTap(): void {
+    const ch = this.campaign.currentChapter;
+    this.showDialogue(`Pip: I'm right here with you! Let's explore ${ch.region}! 🐾❤️`, '🌰');
+  }
+
+  private spawnWoodlandWildlife(): void {
+    // Collectibles in overworld
+    const acorn = this.add.sprite(90, 100, 'item_acorn');
+    const pinecone = this.add.sprite(210, 120, 'item_pinecone');
+    const leaf = this.add.sprite(150, 80, 'item_leaf_oak');
+
+    this.collectibles.push(
+      { id: 'acorn', name: 'Oak Acorn', description: 'Smooth glossy acorn', pictogramKey: 'acorn', x: 90, y: 100, sprite: acorn },
+      { id: 'pinecone', name: 'Pine Cone', description: 'Fragrant pine cone', pictogramKey: 'pinecone', x: 210, y: 120, sprite: pinecone },
+      { id: 'leaf_oak', name: 'Autumn Oak Leaf', description: 'Crisp golden leaf', pictogramKey: 'leaf', x: 150, y: 80, sprite: leaf }
+    );
+
+    // Interactive Hedgehog
+    const hedgehog = this.add.sprite(180, 85, 'animal_hedgehog');
+    this.animals.push({
+      kind: 'hedgehog',
+      x: 180,
+      y: 85,
+      sprite: hedgehog,
+      name: 'Hedgehog',
+      sightWords: ['SNUFFLE', 'IN', 'GRASS'],
+      pictogramKey: 'paw',
+    });
+  }
+
+  private setupInputControls(): void {
+    this.inputManager = new TolerantInputManager({
+      viewport: () => ({ width: BASE_WIDTH, height: 192 }),
+    });
+
+    this.cursors = this.input.keyboard?.createCursorKeys();
+    this.wasdKeys = this.input.keyboard?.addKeys({
+      up: Phaser.Input.Keyboard.KeyCodes.W,
+      down: Phaser.Input.Keyboard.KeyCodes.S,
+      left: Phaser.Input.Keyboard.KeyCodes.A,
+      right: Phaser.Input.Keyboard.KeyCodes.D,
+    }) as {
+      up: Phaser.Input.Keyboard.Key;
+      down: Phaser.Input.Keyboard.Key;
+      left: Phaser.Input.Keyboard.Key;
+      right: Phaser.Input.Keyboard.Key;
+    };
+
+    // Tap-to-move pathfinding
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.y >= 192) return; // Satchel bar touches handled by UI
+      const accepted = this.inputManager.pointerDown({
+        id: pointer.id,
+        pointerType: 'touch',
+        x: pointer.x,
+        y: pointer.y,
+        width: 20,
+        height: 20,
+        timeMs: performance.now(),
+      });
+
+      if (accepted) {
+        const waypoints = this.pathfinder.navigate(
+          { x: this.playerBody.x, y: this.playerBody.y },
+          { x: pointer.x, y: pointer.y }
+        );
+        if (waypoints && waypoints.length > 0) {
+          this.currentWaypoints = waypoints;
+        }
+      }
+    });
   }
 
   override update(_time: number, delta: number): void {
-    const dt = delta / 1000;
-    this.sessionElapsedSeconds += dt;
+    // 1. Session Timer & Bedtime Curfew
+    this.sessionElapsedSeconds += delta / 1000;
+    const remaining = Math.max(0, SESSION.DAILY_LIMIT_SECONDS - this.sessionElapsedSeconds);
 
-    const satchelScene = this.scene.get('SatchelUI') as { updateSessionTimer?: (s: number) => void };
-    const secondsRemaining = Math.max(0, SESSION.DAILY_LIMIT_SECONDS - this.sessionElapsedSeconds);
-    satchelScene?.updateSessionTimer?.(secondsRemaining);
+    const satchelScene = this.scene.get('SatchelUI') as { updateSessionTimer?: (sec: number) => void };
+    satchelScene?.updateSessionTimer?.(remaining);
 
     if (this.sessionElapsedSeconds >= SESSION.SUNSET_START_SECONDS && !this.isSunsetTriggered) {
       this.isSunsetTriggered = true;
@@ -494,196 +550,106 @@ export class WorldScene extends Phaser.Scene {
     if (this.sessionElapsedSeconds >= SESSION.DAILY_LIMIT_SECONDS && !this.isBedtime) {
       this.isBedtime = true;
       eventBus.emit('bedtime:lock');
-      this.scene.pause();
-      this.scene.launch('BedtimeScene');
+      this.scene.start('BedtimeScene');
       return;
     }
 
-    // Kinematic waypoint navigation or keyboard input
-    const prevX = this.playerBody.x;
-    const prevY = this.playerBody.y;
-    let isMoving = false;
+    // 2. Keyboard Navigation Movement
+    let vx = 0;
+    let vy = 0;
+    if (this.cursors?.left.isDown || this.wasdKeys?.left.isDown) vx -= 1;
+    if (this.cursors?.right.isDown || this.wasdKeys?.right.isDown) vx += 1;
+    if (this.cursors?.up.isDown || this.wasdKeys?.up.isDown) vy -= 1;
+    if (this.cursors?.down.isDown || this.wasdKeys?.down.isDown) vy += 1;
 
-    // Check keyboard input
-    let keyDx = 0;
-    let keyDy = 0;
-    if (this.cursors || this.wasdKeys) {
-      if (this.cursors?.left.isDown || this.wasdKeys?.left.isDown) keyDx -= 1;
-      if (this.cursors?.right.isDown || this.wasdKeys?.right.isDown) keyDx += 1;
-      if (this.cursors?.up.isDown || this.wasdKeys?.up.isDown) keyDy -= 1;
-      if (this.cursors?.down.isDown || this.wasdKeys?.down.isDown) keyDy += 1;
-    }
+    const isMoving = vx !== 0 || vy !== 0 || this.currentWaypoints.length > 0;
 
-    if (keyDx !== 0 || keyDy !== 0) {
+    if (vx !== 0 || vy !== 0) {
       this.currentWaypoints = [];
-      const res = this.movementController.step(this.playerBody, { x: keyDx, y: keyDy }, dt, this.collisionGrid);
-      isMoving = res.moved;
-    } else {
-      const nextWp = this.currentWaypoints[0];
-      if (nextWp) {
-        const dx = nextWp.x - this.playerBody.x;
-        const dy = nextWp.y - this.playerBody.y;
-        const distToWp = Math.hypot(dx, dy);
+      const dir: Facing = vx < 0 ? 'left' : vx > 0 ? 'right' : vy < 0 ? 'up' : 'down';
+      this.playerBody.facing = dir;
+      this.handleDPadMove(dir);
 
-        if (distToWp < 3) {
-          this.currentWaypoints.shift();
-        } else {
-          const res = this.movementController.step(this.playerBody, { x: dx, y: dy }, dt, this.collisionGrid);
-          isMoving = res.moved;
-        }
-      } else {
-        this.movementController.step(this.playerBody, { x: 0, y: 0 }, dt, this.collisionGrid);
-      }
-    }
-
-    // Step sound
-    if (isMoving) {
-      this.stepSoundTimer += dt;
-      if (this.stepSoundTimer >= 0.38) {
+      this.stepSoundTimer += delta;
+      if (this.stepSoundTimer > 350) {
         this.stepSoundTimer = 0;
-        audioManager.playKalimba(this.kalimbaStep++);
+        audioManager.playWoodblock();
+      }
+    } else if (this.currentWaypoints.length > 0) {
+      // Waypoint pathfinding step
+      const target = this.currentWaypoints[0]!;
+      const dx = target.x - this.playerBody.x;
+      const dy = target.y - this.playerBody.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < 4) {
+        this.currentWaypoints.shift();
+      } else {
+        const step = Math.min(dist, 1.2);
+        this.playerBody.x += (dx / dist) * step;
+        this.playerBody.y += (dy / dist) * step;
+        this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
+        this.pipCompanion.recordPlayerStep(this.playerBody.x, this.playerBody.y, this.playerBody.facing);
+        const targetBc = this.pipCompanion.getTargetBreadcrumb();
+        this.pipSprite.setPosition(targetBc.x, targetBc.y);
       }
     }
 
-    // Pip Companion update
-    if (isMoving) {
-      this.pipCompanion.recordPlayerStep(
-        this.playerBody.x,
-        this.playerBody.y,
-        this.playerBody.facing
-      );
-    }
-    this.pipCompanion.update(isMoving, this.sessionElapsedSeconds, this.isBedtime, dt);
+    // Update Pip Companion and Camera
+    this.pipCompanion.update(isMoving, this.sessionElapsedSeconds, this.isBedtime, delta / 1000);
+    this.cameraController.update(this.playerBody.x, this.playerBody.y, delta / 1000);
 
-    // Update player sprite position and texture
-    this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
-    const walkFrame = Math.floor((this.sessionElapsedSeconds * 6) % 4);
-    const rangerTex = isMoving
-      ? `ranger_${this.playerBody.facing}_${walkFrame}`
-      : `ranger_${this.playerBody.facing}_0`;
-    if (this.textures.exists(rangerTex)) {
-      this.playerSprite.setTexture(rangerTex);
-    }
+    // 3. Update Flashlight Lighting Cone in Winter/Cave Chapters
+    this.updateFlashlight();
 
-    // Update Pip sprite position and texture
-    this.pipSprite.setPosition(this.pipCompanion.x, this.pipCompanion.y);
-    const pipTex = `pip_${this.pipCompanion.currentState}_0`;
-    if (this.textures.exists(pipTex)) {
-      this.pipSprite.setTexture(pipTex);
-    }
-
-    // Camera follow with deadzone
-    const scroll = this.cameraController.update(this.playerBody.x, this.playerBody.y, dt);
-    this.cameras.main.setScroll(scroll.x, scroll.y);
-
-    // Check Hotspots, Collectibles, and Animal Proximity when player moved
-    if (prevX !== this.playerBody.x || prevY !== this.playerBody.y) {
-      this.checkHotspots();
-      this.checkCollectiblePickups();
-      this.checkAnimalEncounters();
-    }
-  }
-
-  private checkCollectiblePickups(): void {
-    for (let i = this.collectibles.length - 1; i >= 0; i--) {
-      const item = this.collectibles[i]!;
-      const dist = Math.hypot(this.playerBody.x - item.x, this.playerBody.y - item.y);
-      if (dist < 18) {
-        const added = this.campaign.addItem({
-          id: item.id,
-          name: item.name,
-          description: item.description,
-          pictogramKey: item.pictogramKey,
+    // 4. Proximity Item Pickup
+    for (const c of this.collectibles) {
+      if (c.sprite.visible && Math.hypot(c.x - this.playerBody.x, c.y - this.playerBody.y) < 16) {
+        c.sprite.setVisible(false);
+        this.campaign.addItem({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          pictogramKey: c.pictogramKey,
         });
-        if (added) {
-          audioManager.playWaterBubble();
-          item.sprite.destroy();
-          this.collectibles.splice(i, 1);
-        }
+        audioManager.playWaterBubble();
+        this.showDialogue(`Pip: Look! You found a fresh ${c.name}! Placed in satchel! 🎒`, '🌰');
       }
     }
   }
 
-  private checkAnimalEncounters(): void {
-    const now = Date.now();
-    if (now - this.lastAnimalTalkTime < 7000 || this.dialogueBox.isOpen) return;
+  private updateFlashlight(): void {
+    if (!this.flashlightGraphics) return;
+    this.flashlightGraphics.clear();
 
-    for (const animal of this.animals) {
-      const dist = Math.hypot(this.playerBody.x - animal.x, this.playerBody.y - animal.y);
-      if (dist < 26) {
-        this.lastAnimalTalkTime = now;
-        this.pipCompanion.onPlayerInspect();
-        audioManager.playPipChirrup();
-        this.dialogueBox.open({
-          speaker: animal.name,
-          pictogramKey: animal.pictogramKey,
-          text: `You meet ${animal.name}!`,
-          words: [...animal.sightWords],
-        });
-        this.updateDialogueBoxUI();
-        break;
-      }
+    const ch = this.campaign.currentChapter.id;
+    // Show flashlight beam in dark cave or winter chapters (Ch 8, 16)
+    if (ch === 8 || ch === 16) {
+      this.flashlightGraphics.fillStyle(0xFFEAA7, 0.22);
+      this.flashlightGraphics.beginPath();
+      this.flashlightGraphics.moveTo(this.playerBody.x, this.playerBody.y);
+      this.flashlightGraphics.lineTo(this.playerBody.x + 85, this.playerBody.y - 25);
+      this.flashlightGraphics.lineTo(this.playerBody.x + 95, this.playerBody.y + 25);
+      this.flashlightGraphics.closePath();
+      this.flashlightGraphics.fillPath();
     }
   }
 
-  private checkHotspots(): void {
-    const tileX = Math.floor(this.playerBody.x / this.tileSize);
-    const tileY = Math.floor(this.playerBody.y / this.tileSize);
-
-    // Stepping stones hotspot (river bridge at 19, 10 or 19, 11)
-    if (tileX === 19 && (tileY === 10 || tileY === 11)) {
-      if (this.campaign.currentChapter.puzzleType === 'subitizing') {
-        this.openPuzzleOverlay('stepping_stones');
-      }
-    }
-
-    // Watermill hotspot (near 16, 14)
-    if (tileX === 16 && (tileY >= 14 && tileY <= 16)) {
-      if (this.campaign.currentChapter.puzzleType === 'gearbox') {
-        this.openPuzzleOverlay('mossy_gearbox');
-      }
-    }
-  }
-
-  private openPuzzleOverlay(type: 'mossy_gearbox' | 'stepping_stones'): void {
-    this.scene.pause();
-    this.scene.launch('PuzzleOverlayScene', {
-      puzzleType: type,
-      onComplete: () => {
-        this.campaign.completeCurrentChapter();
-        const nextCh = this.campaign.currentChapter;
-        this.dialogueBox.open({
-          speaker: 'Pip',
-          pictogramKey: nextCh.pictogramKey,
-          text: nextCh.objective,
-          words: [...nextCh.sightWords],
-        });
-        this.updateDialogueBoxUI();
-        audioManager.playSuccessChord();
-      },
-    });
-  }
-
-  private exposeGlobalHooks(): void {
+  private exposeStateInspection(): void {
     if (typeof window !== 'undefined') {
-      (window as unknown as { __GAME__: Phaser.Game }).__GAME__ = this.game;
-      (window as unknown as { __GAME_STATE__: () => GameStateInspection }).__GAME_STATE__ = () => ({
-        player: {
-          x: this.playerBody.x,
-          y: this.playerBody.y,
-          facing: this.playerBody.facing,
-        },
-        pip: {
-          x: this.pipCompanion.x,
-          y: this.pipCompanion.y,
-          state: this.pipCompanion.currentState,
-        },
+      (window as unknown as { __GAME_STATE__?: () => GameStateInspection }).__GAME_STATE__ = () => ({
+        player: { x: this.playerBody.x, y: this.playerBody.y, facing: this.playerBody.facing },
+        pip: { x: this.pipSprite.x, y: this.pipSprite.y, state: this.pipCompanion.currentState },
         chapter: this.campaign.currentChapter.id,
         season: this.campaign.currentSeason,
         sessionElapsedSeconds: this.sessionElapsedSeconds,
         isBedtime: this.isBedtime,
         satchelCount: this.campaign.satchel.length,
       });
+
+      (window as unknown as { __SWITCH_CHAPTER__?: (id: number) => void }).__SWITCH_CHAPTER__ = (id: number) => {
+        this.switchChapter(id);
+      };
     }
   }
 }
