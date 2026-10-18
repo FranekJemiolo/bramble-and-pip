@@ -113,3 +113,24 @@ CI workflows exercised; GitHub Pages enabled; final journal sign-off.
   ends with `%%EOF`; app boots and plays with the network offline after first load.
 * Push to `main` → CI green → Pages deploy at
   https://franekjemiolo.github.io/bramble-and-pip/.
+
+---
+
+## Phase 7 — Generative pixel art toolchain, Antigravity IDE orchestration & visual QA testbed ☑
+
+**Deliverables**
+* Sprite sanitizer and palette quantizer: `scripts/process-sprite.js` with Sharp (chroma-key #FF00FF removal, binary alpha enforcement, 16-color Whispering Woods perceptual distance clamping).
+* Local Art Pipeline MCP server: `scripts/art-pipeline-mcp.js` (exposing `sanitize_sprite`, `audit_palette`, `test_tile_seam`).
+* Antigravity IDE environment orchestration: `.agents/mcp_config.json`, `.agents/rules/art-pipeline.md`, `.agents/rules/pedagogy-invariants.md`, `.agents/skills/generate-sprite/SKILL.md` (and `.antigravity/` equivalents).
+* Standard puzzle JSON manifests: `public/assets/puzzles/puzzle_ch07_mossy_gearbox.json`, `public/assets/puzzles/puzzle_ch03_stepping_stones.json`.
+* VRAM budgeting & seasonal asset disposal: `src/core/world/SeasonalAssetLifecycleManager.ts`.
+* Additional offline vector PDF definitions: `buildJuniorRangerCertificatePDFDefinition` & `buildScavengerHuntGuidePDFDefinition` in `src/export/pdfGenerator.ts`.
+* Isolated visual QA testbed: `testbed.html`, `src/testbed.ts`, and Playwright suite `tests/e2e/visual-testbed.spec.ts`.
+
+**Gate / acceptance**
+* `npm run lint` green (0 errors, 0 warnings).
+* `npm run test:unit` green (114/114 passing across 10 test suites).
+* `npm run test:e2e` green (9/9 passing across Desktop and Tablet viewports).
+* `npm run audit:egress` green (zero network egress verified across source, bundle, and CSP).
+* `npm run build` green (clean build with both `index.html` and `testbed.html` entry points).
+

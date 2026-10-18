@@ -1,0 +1,20 @@
+description: Invariant rules for all 2D pixel art, sprites, and animations
+globs: ["assets/**/*.png", "src/scenes/**/*.ts", "src/render/**/*.ts"]
+---
+
+# Visual Invariant Guardrails for Bramble & Pip
+
+1. **Resolution & Grid:**
+   - Base display resolution is strictly 320x288 (2x Game Boy integer scale).
+   - Tile units must be exactly 16x16 or 32x32 pixels.
+   - Character frames must fit within a 48x48 bounding box.
+   - Zero "mixels": All assets must share identical pixel scale.
+
+2. **Color Palette Enforcement:**
+   - Every asset must clamp to the 16-color "Whispering Woods" palette.
+   - Never allow soft gradients, airbrushing, or anti-aliased edge halos.
+   - Binary alpha (0 or 255 only).
+
+3. **Perspective:**
+   - Top-down oblique perspective (3/4 top-down, classic 16-bit RPG angle).
+   - Light source is uniformly top-left, casting short, soft downward shadows.

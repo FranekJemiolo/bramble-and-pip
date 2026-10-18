@@ -240,6 +240,48 @@ ambiguous or internally inconsistent.
 * Phase 0 through Phase 6 are 100% complete and fully verified.
 * All project requirements, pedagogical principles, sensory limits, and ethical anti-addiction bounds are met without compromise.
 
+---
+
+### [0008] 2026-10-18 — Phase 7: Generative Pixel Art Toolchain, Antigravity IDE Orchestration & Visual QA Testbed
+
+**Context:** Incorporating the comprehensive multi-agent generative pixel-art pipeline, Antigravity/Cursor IDE customization assets, JSON puzzle manifests, memory lifecycle management, and isolated visual QA testbed outlined in `bramble_and_pip.md`.
+
+**Decisions:**
+* **Automated Asset Sanitizer (`scripts/process-sprite.js`):** Built with `sharp` to strip `#FF00FF` magenta chroma-key backgrounds, enforce strict binary alpha (0 or 255), and quantize all non-transparent pixels to the 16-color "Whispering Woods" master palette using human-perceptual weighted Euclidean distance ($2\Delta R^2 + 4\Delta G^2 + 3\Delta B^2$).
+* **Local Art Pipeline MCP Server (`scripts/art-pipeline-mcp.js`):** Implements standard stdio JSON-RPC tooling for AI agents (`sanitize_sprite`, `audit_palette`, `test_tile_seam`). Calculates Wang-tile boundary variance $\Delta_{border} = \sum_{y=0}^{15} |P(0, y) - P(15, y)|$.
+* **Antigravity Environment Orchestration:**
+  - Registered `.agents/mcp_config.json` for `pixellab` and `local-art-pipeline`.
+  - Established persistent invariant rules: `.agents/rules/art-pipeline.md` ($320 \times 288$, 16-color palette, zero mixels) and `.agents/rules/pedagogy-invariants.md` (zero egress, 15m session limit, motor tolerances).
+  - Provided operational skill `.agents/skills/generate-sprite/SKILL.md` (and `.antigravity/` equivalents).
+* **VRAM Budgeting & Asset Disposal:** Implemented `SeasonalAssetLifecycleManager` to dynamically purge textures and audio buffers when switching seasonal biomes, maintaining active GPU memory strictly below the 60MB mobile ceiling.
+* **Declarative Puzzle Manifests:** Added JSON schema manifests for *The Mossy Gearbox* (`puzzle_ch07_mossy_gearbox.json`) and *Stepping Stone Subitizing* (`puzzle_ch03_stepping_stones.json`).
+* **Offline Vector PDF Suite Expansion:** Added `buildJuniorRangerCertificatePDFDefinition` (landscape Honor Certificate for Chapter 20 completion) and `buildScavengerHuntGuidePDFDefinition` (4-badge outdoor expedition guide) to `src/export/pdfGenerator.ts`.
+* **Isolated Visual QA Testbed:** Created `testbed.html`, `src/testbed.ts`, and Playwright E2E suite `tests/e2e/visual-testbed.spec.ts` for inspecting character walk frames, companion reaction states, seasonal autotiles, and flashlight Bayer dithering.
+
+**Artifacts Produced:**
+* `scripts/process-sprite.js`: Programmatic sprite sanitizer.
+* `scripts/art-pipeline-mcp.js`: Stdio MCP server for sprite sanitization and seam verification.
+* `.agents/mcp_config.json`: Project MCP configuration.
+* `.agents/rules/art-pipeline.md` & `.antigravity/rules/art-pipeline.mdc`: Art pipeline rules.
+* `.agents/rules/pedagogy-invariants.md`: Pedagogical rules.
+* `.agents/skills/generate-sprite/SKILL.md` & `.antigravity/skills/generate-sprite/SKILL.md`: Sprite generation skill.
+* `src/core/world/SeasonalAssetLifecycleManager.ts`: Seasonal texture/audio purge routines.
+* `public/assets/puzzles/puzzle_ch07_mossy_gearbox.json`: Chapter 7 puzzle manifest.
+* `public/assets/puzzles/puzzle_ch03_stepping_stones.json`: Chapter 3 puzzle manifest.
+* `src/export/pdfGenerator.ts`: Added certificate and scavenger hunt templates.
+* `testbed.html` & `src/testbed.ts`: Isolated visual inspection testbed.
+* `tests/unit/process-sprite.spec.ts`: Unit test for sprite processing.
+* `tests/unit/seasonal-lifecycle.spec.ts`: Unit test for seasonal lifecycle.
+* `tests/e2e/visual-testbed.spec.ts`: Playwright visual testbed suite.
+
+**Gate:**
+* `npm run lint` ✔ (0 errors, 0 warnings)
+* `npm run test:unit` ✔ (114/114 passing across 10 suites)
+* `npm run test:e2e` ✔ (9/9 passing across Desktop and Tablet viewports)
+* `npm run audit:egress` ✔ (clean)
+* `npm run build` ✔ (clean dual-entry production build)
+
+
 
 
 

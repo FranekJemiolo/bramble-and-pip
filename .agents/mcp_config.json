@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "pixellab": {
+      "command": "npx",
+      "args": ["-y", "@pixellab/mcp-server"],
+      "env": {
+        "PIXELLAB_API_KEY": "${PIXELLAB_API_KEY}"
+      }
+    },
+    "local-art-pipeline": {
+      "command": "node",
+      "args": ["./scripts/art-pipeline-mcp.js"]
+    }
+  }
+}

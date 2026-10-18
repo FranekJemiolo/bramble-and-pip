@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -26,6 +27,11 @@ export default defineConfig({
     sourcemap: false,
     chunkSizeWarningLimit: 2600,
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        testbed: resolve(__dirname, 'testbed.html'),
+      },
+
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules/phaser')) return 'vendor-phaser';

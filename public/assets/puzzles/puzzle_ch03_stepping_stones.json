@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "puzzle_ch03_stepping_stones",
+  "chapterId": "CH-03",
+  "season": "spring",
+  "title": "Stepping Stone Subitizing",
+  "pedagogy": "Subitizing (instant dot recognition 1 to 5), cardinality, serene motor coordination",
+  "failureStatesAllowed": false,
+  "magneticSnapRadiusPx": 80,
+  "pads": [
+    { "id": 1, "x": 60, "y": 160, "dotCount": 1 },
+    { "id": 2, "x": 110, "y": 110, "dotCount": 2 },
+    { "id": 3, "x": 160, "y": 170, "dotCount": 3 },
+    { "id": 4, "x": 210, "y": 115, "dotCount": 4 },
+    { "id": 5, "x": 260, "y": 160, "dotCount": 5 }
+  ],
+  "completionAudio": "water_bubble_chime"
+}

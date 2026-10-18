@@ -39,7 +39,7 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }] },
   },
   {
-    files: ['scripts/**/*.mjs', 'eslint.config.js'],
+    files: ['scripts/**/*.{js,mjs}', 'eslint.config.js'],
     languageOptions: { globals: { ...globals.node } },
   },
 );

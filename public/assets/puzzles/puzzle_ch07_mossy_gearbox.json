@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "puzzle_ch07_mossy_gearbox",
+  "chapterId": "CH-07",
+  "season": "summer",
+  "title": "The Mossy Gearbox",
+  "pedagogy": "Spatial logic, gear ratios, unhurried tactile problem solving",
+  "failureStatesAllowed": false,
+  "magneticSnapRadiusPx": 80,
+  "driveGear": {
+    "id": "drive",
+    "x": 96,
+    "y": 136,
+    "radius": 32,
+    "teeth": 16,
+    "speedMultiplier": 1.0,
+    "isFixed": true
+  },
+  "drivenGear": {
+    "id": "driven",
+    "x": 224,
+    "y": 136,
+    "radius": 32,
+    "teeth": 16,
+    "speedMultiplier": 1.0,
+    "isFixed": true
+  },
+  "idlerGear": {
+    "id": "idler",
+    "trayPosition": { "x": 160, "y": 230 },
+    "radius": 32,
+    "teeth": 16,
+    "speedMultiplier": -1.0,
+    "isFixed": false
+  },
+  "meshTarget": {
+    "x": 160,
+    "y": 136,
+    "captureRadiusPx": 80
+  },
+  "completionAudio": "acoustic_kalimba_chime"
+}

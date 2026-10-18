@@ -209,8 +209,175 @@ export function buildAutumnLeafPressPDFDefinition(): TDocumentDefinitions {
 }
 
 /**
- * Renders a PDF definition to a Uint8Array buffer completely offline in memory.
+ * Builds the Junior Ranger Honor Certificate definition for campaign completion.
  */
+export function buildJuniorRangerCertificatePDFDefinition(rangerName = 'Young Explorer'): TDocumentDefinitions {
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'landscape',
+    pageMargins: [40, 40, 40, 40],
+    content: [
+      {
+        text: 'BRAMBLE & PIP — WHISPERING WOODS',
+        style: 'header',
+        color: '#2C3E50',
+      },
+      {
+        text: 'JUNIOR RANGER HONOR CERTIFICATE',
+        style: 'certificateTitle',
+      },
+      {
+        text: 'This certifies that',
+        margin: [0, 20, 0, 5],
+        alignment: 'center',
+        fontSize: 14,
+      },
+      {
+        text: rangerName.toUpperCase(),
+        style: 'recipientName',
+      },
+      {
+        text: 'has explored all four seasons with Pip, observed nature with patient kindness,\nand protected the wildlife of the Whispering Woods.',
+        alignment: 'center',
+        margin: [0, 15, 0, 30],
+        fontSize: 12,
+        lineHeight: 1.4,
+      },
+      {
+        columns: [
+          {
+            text: '_________________________\nRanger Bramble\nForest Warden',
+            alignment: 'center',
+          },
+          {
+            text: '🐾 🐾 🐾\nPip the Companion\nForest Scout',
+            alignment: 'center',
+          },
+          {
+            text: '_________________________\nDate of Honor',
+            alignment: 'center',
+          },
+        ],
+      },
+    ],
+    styles: {
+      header: {
+        fontSize: 14,
+        bold: true,
+        alignment: 'center',
+      },
+      certificateTitle: {
+        fontSize: 24,
+        bold: true,
+        color: '#789E3E',
+        alignment: 'center',
+        margin: [0, 8, 0, 10],
+      },
+      recipientName: {
+        fontSize: 22,
+        bold: true,
+        color: '#C96E2E',
+        alignment: 'center',
+        margin: [0, 10, 0, 10],
+      },
+    },
+    defaultStyle: {
+      color: '#2C3E50',
+    },
+  };
+}
+
+/**
+ * Builds the 4-Badge Scavenger Hunt expedition guide definition.
+ */
+export function buildScavengerHuntGuidePDFDefinition(): TDocumentDefinitions {
+  return {
+    pageSize: 'A4',
+    pageMargins: [40, 40, 40, 40],
+    content: [
+      {
+        text: 'BRAMBLE & PIP — 4-BADGE OUTDOOR EXPEDITION',
+        style: 'header',
+      },
+      {
+        text: 'Nature Detective Scavenger Hunt & Sensory Journal',
+        style: 'subheader',
+      },
+      {
+        text: 'Take this gentle checklist outside to earn your four Junior Ranger badges!',
+        margin: [0, 8, 0, 16],
+      },
+      {
+        table: {
+          widths: ['30%', '55%', '15%'],
+          body: [
+            [
+              { text: 'BADGE', style: 'tableHeader' },
+              { text: 'NATURE OBSERVATION MISSION', style: 'tableHeader' },
+              { text: 'EARNED', style: 'tableHeader' },
+            ],
+            [
+              { text: '1. The Leaf Detective', bold: true },
+              { text: 'Find three different leaf shapes: jagged (oak/birch), wavy, and smooth.' },
+              { text: '[   ]', alignment: 'center' },
+            ],
+            [
+              { text: '2. The Natural Tracker', bold: true },
+              { text: 'Spot animal tracks in mud or snow, or make your own fist-stamp track.' },
+              { text: '[   ]', alignment: 'center' },
+            ],
+            [
+              { text: '3. The Whispering Ear', bold: true },
+              { text: 'Sit quietly for 60 seconds. Count 3 distinct natural sounds (wind, bird, rustle).' },
+              { text: '[   ]', alignment: 'center' },
+            ],
+            [
+              { text: '4. The Path Maker', bold: true },
+              { text: 'Gather 5 fallen twigs and build a tiny, cozy nest on the ground for a woodland beetle.' },
+              { text: '[   ]', alignment: 'center' },
+            ],
+          ],
+        },
+      },
+      {
+        text: 'Offline vector printable — Zero network egress — Bramble & Pip pedagogical adventure',
+        style: 'footer',
+        margin: [0, 30, 0, 0],
+      },
+    ],
+    styles: {
+      header: {
+        fontSize: 18,
+        bold: true,
+        color: '#2C3E50',
+        alignment: 'center',
+      },
+      subheader: {
+        fontSize: 13,
+        bold: true,
+        color: '#4A7032',
+        alignment: 'center',
+        margin: [0, 4, 0, 6],
+      },
+      tableHeader: {
+        bold: true,
+        fillColor: '#EAE6DF',
+        color: '#2C3E50',
+      },
+      footer: {
+        fontSize: 8,
+        color: '#95A5A6',
+        alignment: 'center',
+      },
+    },
+    defaultStyle: {
+      fontSize: 10,
+      color: '#2C3E50',
+    },
+  };
+}
+
+
 export async function exportPDFToBuffer(docDefinition: TDocumentDefinitions): Promise<Uint8Array> {
   ensureVfsInitialized();
   return new Promise<Uint8Array>((resolve, reject) => {
