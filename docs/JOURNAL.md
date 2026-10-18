@@ -178,4 +178,36 @@ ambiguous or internally inconsistent.
 
 **Next.** Phase 5: Persistence, Parent Gate, Curfews & Power Management.
 
+---
+
+### [0006] 2026-10-18 — Phase 5: Persistence, Parent Gate, Curfews & Power Management
+
+**Context:** Phase 5 hardens data durability, ensures strict session bounds, and empowers parents with offline oversight while safeguarding device battery.
+
+**Decisions:**
+* **Atomic Double-Buffered Persistence:** `LocalPersistenceEngine` stores records with CRC32 checksums (`save_staging` $\to$ CRC check $\to$ promotion to `save_primary` with `save_backup`). Corrupted primary files automatically restore from backup. Safari Private Browsing quota blocks seamlessly fall back to an in-memory `MemoryStore`.
+* **Monotonic Session Regulation:** `SessionClock` tracks gameplay monotonically via `performance.now()`. Parents can set limits between 5 and 15 minutes, but the 15-minute daily ceiling cannot be exceeded. Frame deltas from backgrounded tabs are clamped to $\le 100$ms to prevent unfreezing leaps. If wall clock rollback is detected ($> 60$s backward jump), the system triggers an immediate resting lock.
+* **Curfew Wraparound:** `isCurfewActive` supports midnight-spanning schedules (default 19:30 to 08:00), returning `true` during bedtime hours.
+* **Parental Gate:** Word-math multiplication challenges ("SEVEN TIMES SIX") prevent young children from bypassing controls while allowing immediate parental access. Three consecutive failures lock the gate for 60 seconds.
+* **Parent Insights:** `ParentInsightService` creates localized nature conversation starters based on the day's collected flora and fauna with zero telemetry or network calls.
+* **Power Management:** `DevicePowerLifecycleManager` manages the Screen Wake Lock API during active exploration and releases it at bedtime.
+
+**Artifacts Produced:**
+* `src/core/persistence/LocalPersistenceEngine.ts`: Double-buffered storage, CRC32 verification, and IndexedDB/Memory adapters.
+* `src/core/session/SessionClock.ts`: Monotonic session clock, tab-throttle clamping, and clock rollback defense.
+* `src/core/session/CurfewService.ts`: Curfew evaluation with midnight wraparound.
+* `src/core/parent/ParentalGateService.ts`: Seeded word-math challenges and rate limiting.
+* `src/core/parent/ParentInsightService.ts`: Zero-egress nature conversation starters.
+* `src/core/power/DevicePowerLifecycleManager.ts`: Screen Wake Lock management.
+* `tests/unit/persistence-curfew.spec.ts`: Unit tests for persistence, curfews, clock, and parental gate (107 total tests passing).
+
+**Gate:**
+* `npm run lint` ✔ (0 warnings)
+* `npm run build` ✔ (tsc + vite build clean)
+* `npm run test:unit` ✔ (107/107 passing)
+* `npm run audit:egress` ✔ (clean)
+
+**Next.** Phase 6: Testing Hardening, E2E Suites & Final Verification.
+
+
 

@@ -86,7 +86,7 @@ region map generator; `WorldScene`, `SatchelUIScene`, `PuzzleOverlayScene`, `Ske
 
 ---
 
-## Phase 5 — Persistence, parent gate, curfews & power ☐
+## Phase 5 — Persistence, parent gate, curfews & power ☑
 
 **Deliverables**
 `LocalPersistenceEngine` (double buffer + CRC32 + backup recovery + memory fallback),

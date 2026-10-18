@@ -97,6 +97,8 @@ export function createRng(seed: number): Rng {
   return rng;
 }
 
+export const mulberry32 = createRng;
+
 /** Hash a string to a 32-bit seed (FNV-1a). */
 export function hashSeed(text: string): number {
   let h = 0x811c9dc5;
