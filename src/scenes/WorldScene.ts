@@ -297,6 +297,7 @@ export class WorldScene extends Phaser.Scene {
 
     if (this.sessionElapsedSeconds >= SESSION.DAILY_LIMIT_SECONDS && !this.isBedtime) {
       this.isBedtime = true;
+      eventBus.emit('bedtime:lock');
       this.scene.pause();
       this.scene.launch('BedtimeScene');
       return;

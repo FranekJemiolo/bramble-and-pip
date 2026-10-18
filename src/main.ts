@@ -8,6 +8,12 @@ import { PuzzleOverlayScene } from './scenes/PuzzleOverlayScene';
 import { SketchbookScene } from './scenes/SketchbookScene';
 import { BedtimeScene } from './scenes/BedtimeScene';
 
+import {
+  buildWinterTrackSpotterPDFDefinition,
+  buildAutumnLeafPressPDFDefinition,
+  exportPDFToBuffer,
+} from './export/pdfGenerator';
+
 export const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game-container',
@@ -20,5 +26,13 @@ export const game = new Phaser.Game({
   fps: { target: TARGET_FPS, limit: TARGET_FPS },
   scene: [WorldScene, SatchelUIScene, PuzzleOverlayScene, SketchbookScene, BedtimeScene],
 });
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { __EXPORT_PDF__: unknown }).__EXPORT_PDF__ = {
+    buildWinterTrackSpotterPDFDefinition,
+    buildAutumnLeafPressPDFDefinition,
+    exportPDFToBuffer,
+  };
+}
 
 registerServiceWorker();

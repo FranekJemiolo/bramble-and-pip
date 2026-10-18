@@ -100,7 +100,7 @@ region map generator; `WorldScene`, `SatchelUIScene`, `PuzzleOverlayScene`, `Ske
 
 ---
 
-## Phase 6 — Testing hardening, E2E suites & final verification ☐
+## Phase 6 — Testing hardening, E2E suites & final verification ☑
 
 **Deliverables**
 Playwright suites: `boot-and-nav`, `stochastic-touch` (Box–Muller σx 18 px, σy 22 px,

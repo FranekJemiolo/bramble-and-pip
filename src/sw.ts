@@ -13,7 +13,7 @@ declare global {
 interface SwScope {
   skipWaiting(): Promise<void>;
   clients: { claim(): Promise<void> };
-  addEventListener(type: 'message', listener: (event: { data?: { type?: string } }) => void): void;
+  addEventListener(type: string, listener: (event: unknown) => void): void;
 }
 const sw = self as unknown as SwScope;
 
@@ -23,7 +23,12 @@ precacheAndRoute(self.__WB_MANIFEST);
 // Single-page app shell: every navigation within scope resolves to the precached index.html.
 registerRoute(new NavigationRoute(createHandlerBoundToURL(`${import.meta.env.BASE_URL}index.html`)));
 
-sw.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') void sw.skipWaiting();
+sw.addEventListener('install', () => {
+  void sw.skipWaiting();
+});
+
+sw.addEventListener('message', (event: unknown) => {
+  const msg = event as { data?: { type?: string } };
+  if (msg.data?.type === 'SKIP_WAITING') void sw.skipWaiting();
 });
 void sw.clients.claim();
