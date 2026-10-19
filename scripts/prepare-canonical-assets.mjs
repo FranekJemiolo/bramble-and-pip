@@ -92,18 +92,21 @@ async function main() {
 
   // 3. World Viewport Backgrounds (each 320x192)
   const scenes = [
-    { key: 'whispering_woods', file: 'media_1792358613284.jpg' },
-    { key: 'mossy_gearbox', file: 'media_1792358602848.jpg' },
-    { key: 'mossy_hollow', file: 'media_1792358607216.jpg' },
-    { key: 'sketchbook', file: 'media_1792358596468.jpg' },
-    { key: 'pine_ridge', file: 'media_1792358529853.jpg' },
-    { key: 'ranger_lodge', file: 'media_1792358512416.jpg' },
+    { key: 'whispering_woods', file: 'whispering_woods_empty.jpg', extract: { left: 0, top: 0, width: 1200, height: 596 } },
+    { key: 'mossy_gearbox', file: 'media_1792358602848.jpg', extract: { left: 0, top: 0, width: 1024, height: 508 } },
+    { key: 'mossy_hollow', file: 'media_1792358607216.jpg', extract: { left: 0, top: 0, width: 1024, height: 508 } },
+    { key: 'sketchbook', file: 'media_1792358596468.jpg', extract: { left: 0, top: 0, width: 1024, height: 508 } },
+    { key: 'pine_ridge', file: 'media_1792358529853.jpg', extract: { left: 0, top: 0, width: 1024, height: 508 } },
+    { key: 'ranger_lodge', file: 'media_1792358512416.jpg', extract: { left: 0, top: 0, width: 1024, height: 508 } },
   ];
 
   for (const sc of scenes) {
+    const filePath = fs.existsSync(path.join(BRAIN_DIR, sc.file))
+      ? path.join(BRAIN_DIR, sc.file)
+      : path.resolve('scratch', sc.file);
     assetsRecord[`${sc.key}_bg`] = await processAsset(
-      path.join(BRAIN_DIR, sc.file),
-      { left: 0, top: 0, width: 1024, height: 508 },
+      filePath,
+      sc.extract,
       { width: 320, height: 192, fit: 'fill' },
       `${sc.key}_bg`
     );

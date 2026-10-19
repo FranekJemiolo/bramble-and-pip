@@ -24,6 +24,12 @@ export const game = new Phaser.Game({
   parent: 'game-container',
   width: BASE_WIDTH,
   height: BASE_HEIGHT,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.NO_CENTER,
+    width: BASE_WIDTH,
+    height: BASE_HEIGHT,
+  },
   backgroundColor: LETTERBOX_COLOR,
   pixelArt: true,
   roundPixels: true,

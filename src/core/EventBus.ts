@@ -6,6 +6,8 @@ export interface GameEvents {
   'chapter:complete': { chapterId: number };
   'chapter:selected': { chapterId: number };
   'input:dpad': { direction: 'up' | 'down' | 'left' | 'right' };
+  'input:dpad_hold': { direction: 'up' | 'down' | 'left' | 'right'; delta: number };
+  'input:dpad_active': { direction: 'up' | 'down' | 'left' | 'right' | null };
   'action:look_talk': void;
   'pip:interact': void;
   'item:collected': { id: string; name: string; count: number };

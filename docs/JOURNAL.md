@@ -423,6 +423,37 @@ All phases, architectural invariants, pedagogical guardrails, and technical spec
   - Automated screenshot suite captured clean $320 \times 288$ pixel-perfect frames for all chapters: `whispering_woods.png`, `mossy_gearbox.png`, `mossy_hollow.png`, `nature_sketchbook.png`, `pine_ridge.png`, `ranger_lodge.png`, `trail_map.png`, `field_manual.png`, `parent_dashboard.png`, and `bedtime_resting.png`.
   - Zero network egress verified, 114/114 unit tests passing, 10/10 Playwright E2E tests passing.
 
+---
+
+### [0013] 2026-10-19 — Dynamic Display Scaling & Unified Steering Controls Engine
+
+**Context:** Addressing user feedback regarding canvas display size and character steering. The game canvas was previously constrained to native $320 \times 288$ CSS pixels, appearing very small on modern displays. Furthermore, Bramble was not animated across the environment and steering inputs lacked continuous hold capability.
+
+**Decisions & Implementation:**
+* **Dynamic Display Scaling (`src/main.ts`, `src/styles.css`):**
+  - Configured Phaser Scale Manager with `mode: Phaser.Scale.FIT`, `autoCenter: Phaser.Scale.NO_CENTER`, scaling up dynamically to fill 100% of the display viewport height while preserving the 10:9 ($320 \times 288$) aspect ratio.
+  - Configured CSS flexbox centering on `#app` and `#game-container` with `margin: 0 !important` and `image-rendering: pixelated / crisp-edges`.
+  - On a standard $1470 \times 837$ display, the canvas now renders crisp, sharp, and pixel-perfect at $930 \times 837$ pixels (~3× larger in each dimension, ~9× larger area), centered with clean letterboxing.
+* **Inpainted Background Asset (`scripts/prepare-canonical-assets.mjs`):**
+  - Generated and quantized `whispering_woods_empty.jpg` with character inpainting, preserving the authentic pixel art, windmill, stepping stones, and hedgehog while removing frozen character mockups from the dirt trail.
+  - Active steerable Bramble and companion Pip sprites are now the sole characters on screen at depth 25 and 24.
+* **Unified Steering Controls Engine (`src/scenes/SatchelUIScene.ts`, `src/scenes/WorldScene.ts`):**
+  - *Full Quadrant D-Pad Touch/Drag:* Added an omnidirectional touch/drag detection circle ($r = 44$px) centered at $(58, 241)$ over the carved wooden D-pad cross. Allows children to press and slide their thumb across the arrows with zero deadzones and soft highlight feedback.
+  - *Unified Kinematic Velocity:* Unified keyboard WASD, Arrow keys, single-tap D-pad pulses ($240$ms minimum step), and continuous D-pad holding into a single kinematic movement controller (`movementController.step`) with 6px corner sliding.
+  - *Active Walk Cycles & Audio:* Character walk cycles cycle through directional frames (`ranger_${dir}_${f}`) at 140ms/frame, companion Pip hops along breadcrumbs (`pip_FOLLOWING_${f}`), footsteps trigger every 320ms, and the dynamic flashlight cone follows Bramble's facing direction.
+  - *Resilient Tap-to-Move Pathfinding:* Mouse and touch taps on the world viewport (y < 192) trigger A* pathfinding with automatic snapping to nearest walkable tiles, walking along waypoints with animated steps and footsteps.
+* **Automated E2E Verification (`tests/e2e/steering-and-scaling.spec.ts`):**
+  - Added comprehensive Playwright test suite validating display scaling dimensions, keyboard WASD/Arrow steering, continuous D-pad holding with walk frames, and tap-to-move pathfinding.
+
+**Gate:**
+* `npm run typecheck` ✔ (Clean TypeScript 5.9 compile, 0 errors)
+* `npm run lint` ✔ (ESLint 9 clean, 0 warnings)
+* `npm run audit:egress` ✔ (Verified zero network egress)
+* `npm run test:unit` ✔ (114/114 passing across 10 test suites)
+* `npm run test:e2e` ✔ (14/14 passing across desktop and tablet emulators)
+* `npm run build` ✔ (Clean dual-entry production build + PWA service worker with 25 precached entries)
+
+
 
 
 

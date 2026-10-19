@@ -105,34 +105,97 @@ export class SatchelUIScene extends Phaser.Scene {
     }
   }
 
+  private activeDPadDirection?: 'up' | 'down' | 'left' | 'right';
+  private dpadHighlights: Partial<Record<'up' | 'down' | 'left' | 'right', Phaser.GameObjects.Rectangle>> = {};
+
+  private setDPadDirection(dir: 'up' | 'down' | 'left' | 'right'): void {
+    if (this.activeDPadDirection !== dir) {
+      this.activeDPadDirection = dir;
+      for (const k of ['up', 'down', 'left', 'right'] as const) {
+        this.dpadHighlights[k]?.setVisible(k === dir);
+      }
+      audioManager.playWoodblock();
+      eventBus.emit('input:dpad', { direction: dir });
+      eventBus.emit('input:dpad_active', { direction: dir });
+    }
+  }
+
+  private clearDPad(): void {
+    if (this.activeDPadDirection) {
+      this.activeDPadDirection = undefined;
+      for (const k of ['up', 'down', 'left', 'right'] as const) {
+        this.dpadHighlights[k]?.setVisible(false);
+      }
+      eventBus.emit('input:dpad_active', { direction: null });
+    }
+  }
+
   private setupDPadButtons(): void {
-    // D-Pad Hitbox Coordinates: Center (58, 240)
+    // D-Pad Hitbox Coordinates: Center (58, 241)
     const dirs: Array<{ dir: 'up' | 'down' | 'left' | 'right'; x: number; y: number; w: number; h: number }> = [
-      { dir: 'up', x: 58, y: 218, w: 26, h: 22 },
-      { dir: 'down', x: 58, y: 262, w: 26, h: 22 },
-      { dir: 'left', x: 36, y: 240, w: 22, h: 26 },
-      { dir: 'right', x: 80, y: 240, w: 22, h: 26 },
+      { dir: 'up', x: 58, y: 218, w: 28, h: 22 },
+      { dir: 'down', x: 58, y: 264, w: 28, h: 22 },
+      { dir: 'left', x: 35, y: 241, w: 22, h: 28 },
+      { dir: 'right', x: 81, y: 241, w: 22, h: 28 },
     ];
 
     for (const d of dirs) {
-      const zone = this.add.zone(d.x, d.y, d.w, d.h).setInteractive();
-
       // Soft visual press highlight
-      const highlight = this.add.rectangle(d.x, d.y, d.w - 4, d.h - 4, 0xFAF6E8, 0.25);
+      const highlight = this.add.rectangle(d.x, d.y, d.w - 4, d.h - 4, 0xFAF6E8, 0.28);
       highlight.setVisible(false);
+      this.dpadHighlights[d.dir] = highlight;
 
-      zone.on('pointerdown', () => {
-        highlight.setVisible(true);
-        audioManager.playWoodblock();
-        eventBus.emit('input:dpad', { direction: d.dir });
-      });
+      const zone = this.add.zone(d.x, d.y, d.w, d.h).setInteractive({ cursor: 'pointer' });
+      zone.on('pointerdown', () => this.setDPadDirection(d.dir));
+      zone.on('pointerup', () => this.clearDPad());
+    }
 
-      zone.on('pointerup', () => {
-        highlight.setVisible(false);
-      });
+    // Comprehensive tactile touch zone centered on the wooden D-pad cross (radius 44px)
+    // Supports continuous finger sliding across the arrows without deadzones
+    const dpadZone = this.add.circle(58, 241, 44).setInteractive({ cursor: 'pointer' });
 
-      zone.on('pointerout', () => {
-        highlight.setVisible(false);
+    const updateDirectionFromPointer = (pointer: Phaser.Input.Pointer) => {
+      const dx = pointer.x - 58;
+      const dy = pointer.y - 241;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 6 || dist > 46) {
+        this.clearDPad();
+        return;
+      }
+      const dir: 'up' | 'down' | 'left' | 'right' =
+        Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+      this.setDPadDirection(dir);
+    };
+
+    dpadZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      updateDirectionFromPointer(pointer);
+    });
+
+    dpadZone.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.isDown) {
+        updateDirectionFromPointer(pointer);
+      }
+    });
+
+    dpadZone.on('pointerup', () => {
+      this.clearDPad();
+    });
+
+    dpadZone.on('pointerout', () => {
+      this.clearDPad();
+    });
+
+    // Global pointerup failsafe on this scene
+    this.input.on('pointerup', () => {
+      this.clearDPad();
+    });
+  }
+
+  override update(_time: number, delta: number): void {
+    if (this.activeDPadDirection) {
+      eventBus.emit('input:dpad_hold', {
+        direction: this.activeDPadDirection,
+        delta,
       });
     }
   }

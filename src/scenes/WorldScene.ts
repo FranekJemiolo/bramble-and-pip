@@ -64,8 +64,9 @@ export class WorldScene extends Phaser.Scene {
   private inputManager!: TolerantInputManager;
   private collisionGrid!: CollisionGrid;
 
-  private playerBody: KinBody = { x: 120, y: 130, facing: 'down' };
+  private playerBody: KinBody = { x: 105, y: 80, facing: 'right' };
   private currentWaypoints: Vec2[] = [];
+  private walkCycleTimer = 0;
 
   private playerSprite!: Phaser.GameObjects.Sprite;
   private pipSprite!: Phaser.GameObjects.Sprite;
@@ -77,6 +78,8 @@ export class WorldScene extends Phaser.Scene {
   private animals: InteractiveAnimal[] = [];
   private collectibles: CollectibleItem[] = [];
   private stepSoundTimer = 0;
+  private activeDPadDirection: 'up' | 'down' | 'left' | 'right' | null = null;
+  private dpadPulseTimer = 0;
 
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasdKeys?: {
@@ -192,14 +195,14 @@ export class WorldScene extends Phaser.Scene {
     this.flashlightGraphics = this.add.graphics();
     this.flashlightGraphics.setDepth(20);
 
-    // 5. Setup Character Sprites (hidden over canonical artwork to prevent duplicate ghost characters)
-    this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_down_0');
-    this.playerSprite.setDepth(10);
-    this.playerSprite.setVisible(false);
+    // 5. Setup Character Sprites (Active and steerable across world viewport)
+    this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_right_0');
+    this.playerSprite.setDepth(25);
+    this.playerSprite.setVisible(true);
 
     this.pipSprite = this.add.sprite(this.playerBody.x - 16, this.playerBody.y, 'pip_FOLLOWING_0');
-    this.pipSprite.setDepth(9);
-    this.pipSprite.setVisible(false);
+    this.pipSprite.setDepth(24);
+    this.pipSprite.setVisible(true);
 
     // 6. Setup Interactive Animals & Collectibles
     this.spawnWoodlandWildlife();
@@ -452,9 +455,28 @@ export class WorldScene extends Phaser.Scene {
       this.switchChapter(data.chapterId);
     });
 
-    // D-Pad movement event from SatchelUIScene
+    // D-Pad movement event from SatchelUIScene (tap)
     eventBus.on('input:dpad', (data: { direction: 'up' | 'down' | 'left' | 'right' }) => {
-      this.handleDPadMove(data.direction);
+      this.activeDPadDirection = data.direction;
+      this.dpadPulseTimer = 240;
+    });
+
+    // D-Pad continuous hold event from SatchelUIScene (held down)
+    eventBus.on('input:dpad_hold', (data: { direction: 'up' | 'down' | 'left' | 'right' }) => {
+      this.activeDPadDirection = data.direction;
+      this.dpadPulseTimer = 140;
+    });
+
+    // D-Pad active direction tracking (null on release)
+    eventBus.on('input:dpad_active', (data: { direction: 'up' | 'down' | 'left' | 'right' | null }) => {
+      if (data.direction === null) {
+        if (this.dpadPulseTimer <= 0) {
+          this.activeDPadDirection = null;
+        }
+      } else {
+        this.activeDPadDirection = data.direction;
+        this.dpadPulseTimer = 140;
+      }
     });
 
     // Look / Talk action button from SatchelUIScene
@@ -471,22 +493,6 @@ export class WorldScene extends Phaser.Scene {
     eventBus.on('chapter:complete', () => {
       this.updateChapterDialogue();
     });
-  }
-
-  private handleDPadMove(direction: 'up' | 'down' | 'left' | 'right'): void {
-    audioManager.playFootstep();
-    const inputVec = {
-      x: direction === 'left' ? -1 : direction === 'right' ? 1 : 0,
-      y: direction === 'up' ? -1 : direction === 'down' ? 1 : 0,
-    };
-
-    const res = this.movementController.step(this.playerBody, inputVec, 0.1, this.collisionGrid);
-    if (res.moved) {
-      this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
-      this.pipCompanion.recordPlayerStep(this.playerBody.x, this.playerBody.y, this.playerBody.facing);
-      const targetBc = this.pipCompanion.getTargetBreadcrumb();
-      this.pipSprite.setPosition(targetBc.x, targetBc.y);
-    }
   }
 
   private handleLookTalkAction(): void {
@@ -600,7 +606,8 @@ export class WorldScene extends Phaser.Scene {
     // Tap-to-move pathfinding
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.y >= 192) return; // Satchel bar touches handled by UI
-      const accepted = this.inputManager.pointerDown({
+      const isMouse = (pointer.event as PointerEvent | undefined)?.pointerType === 'mouse' || !pointer.wasTouch;
+      const accepted = isMouse || this.inputManager.pointerDown({
         id: pointer.id,
         pointerType: 'touch',
         x: pointer.x,
@@ -642,13 +649,24 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
-    // 2. Keyboard Navigation Movement
+    // 2. Pulse timer countdown for tap-to-step D-Pad input
+    if (this.dpadPulseTimer > 0) {
+      this.dpadPulseTimer -= delta;
+      if (this.dpadPulseTimer <= 0 && this.activeDPadDirection) {
+        const satchel = this.scene.get('SatchelUI') as { activeDPadDirection?: string };
+        if (!satchel?.activeDPadDirection) {
+          this.activeDPadDirection = null;
+        }
+      }
+    }
+
+    // 3. Unified Navigation Movement (Keyboard WASD / Arrows + Satchel D-Pad)
     let vx = 0;
     let vy = 0;
-    if (this.cursors?.left.isDown || this.wasdKeys?.left.isDown) vx -= 1;
-    if (this.cursors?.right.isDown || this.wasdKeys?.right.isDown) vx += 1;
-    if (this.cursors?.up.isDown || this.wasdKeys?.up.isDown) vy -= 1;
-    if (this.cursors?.down.isDown || this.wasdKeys?.down.isDown) vy += 1;
+    if (this.cursors?.left.isDown || this.wasdKeys?.left.isDown || this.activeDPadDirection === 'left') vx -= 1;
+    if (this.cursors?.right.isDown || this.wasdKeys?.right.isDown || this.activeDPadDirection === 'right') vx += 1;
+    if (this.cursors?.up.isDown || this.wasdKeys?.up.isDown || this.activeDPadDirection === 'up') vy -= 1;
+    if (this.cursors?.down.isDown || this.wasdKeys?.down.isDown || this.activeDPadDirection === 'down') vy += 1;
 
     const isMoving = vx !== 0 || vy !== 0 || this.currentWaypoints.length > 0;
 
@@ -656,12 +674,25 @@ export class WorldScene extends Phaser.Scene {
       this.currentWaypoints = [];
       const dir: Facing = vx < 0 ? 'left' : vx > 0 ? 'right' : vy < 0 ? 'up' : 'down';
       this.playerBody.facing = dir;
-      this.handleDPadMove(dir);
 
-      this.stepSoundTimer += delta;
-      if (this.stepSoundTimer > 350) {
-        this.stepSoundTimer = 0;
-        audioManager.playWoodblock();
+      const inputVec = { x: vx, y: vy };
+      const dtSec = Math.min(delta / 1000, 0.05);
+      const res = this.movementController.step(this.playerBody, inputVec, dtSec, this.collisionGrid);
+      if (res.moved) {
+        this.walkCycleTimer += delta;
+        const f = Math.floor(this.walkCycleTimer / 140) % 4;
+        this.playerSprite.setTexture(`ranger_${dir}_${f}`);
+        this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
+        this.pipCompanion.recordPlayerStep(this.playerBody.x, this.playerBody.y, dir);
+        const targetBc = this.pipCompanion.getTargetBreadcrumb();
+        this.pipSprite.setPosition(targetBc.x, targetBc.y);
+        this.pipSprite.setTexture(`pip_FOLLOWING_${f}`);
+
+        this.stepSoundTimer += delta;
+        if (this.stepSoundTimer > 320) {
+          this.stepSoundTimer = 0;
+          audioManager.playFootstep();
+        }
       }
     } else if (this.currentWaypoints.length > 0) {
       // Waypoint pathfinding step
@@ -673,21 +704,39 @@ export class WorldScene extends Phaser.Scene {
       if (dist < 4) {
         this.currentWaypoints.shift();
       } else {
-        const step = Math.min(dist, 1.2);
-        this.playerBody.x += (dx / dist) * step;
-        this.playerBody.y += (dy / dist) * step;
+        const step = Math.min(dist, 1.4);
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const dir: Facing = Math.abs(nx) >= Math.abs(ny) ? (nx > 0 ? 'right' : 'left') : (ny > 0 ? 'down' : 'up');
+        this.playerBody.facing = dir;
+        this.playerBody.x += nx * step;
+        this.playerBody.y += ny * step;
+        this.walkCycleTimer += delta;
+        const f = Math.floor(this.walkCycleTimer / 140) % 4;
+        this.playerSprite.setTexture(`ranger_${dir}_${f}`);
         this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
-        this.pipCompanion.recordPlayerStep(this.playerBody.x, this.playerBody.y, this.playerBody.facing);
+        this.pipCompanion.recordPlayerStep(this.playerBody.x, this.playerBody.y, dir);
         const targetBc = this.pipCompanion.getTargetBreadcrumb();
         this.pipSprite.setPosition(targetBc.x, targetBc.y);
+        this.pipSprite.setTexture(`pip_FOLLOWING_${f}`);
+
+        this.stepSoundTimer += delta;
+        if (this.stepSoundTimer > 320) {
+          this.stepSoundTimer = 0;
+          audioManager.playFootstep();
+        }
       }
+    } else {
+      // Stopped / Idle
+      this.playerSprite.setTexture(`ranger_${this.playerBody.facing}_0`);
+      this.pipSprite.setTexture('pip_IDLE_CURIOUS_0');
     }
 
     // Update Pip Companion and Camera
     this.pipCompanion.update(isMoving, this.sessionElapsedSeconds, this.isBedtime, delta / 1000);
     this.cameraController.update(this.playerBody.x, this.playerBody.y, delta / 1000);
 
-    // 3. Update Flashlight Lighting Cone in Winter/Cave Chapters
+    // 3. Update Flashlight Lighting Cone pointing in facing direction
     this.updateFlashlight();
 
     // 4. Proximity Item Pickup
@@ -711,13 +760,46 @@ export class WorldScene extends Phaser.Scene {
     this.flashlightGraphics.clear();
 
     const ch = this.campaign.currentChapter.id;
+    const px = this.playerBody.x;
+    const py = this.playerBody.y;
+    const facing = this.playerBody.facing;
+
+    let baseAngle = 0;
+    if (facing === 'down') baseAngle = Math.PI / 2;
+    else if (facing === 'left') baseAngle = Math.PI;
+    else if (facing === 'up') baseAngle = -Math.PI / 2;
+    else baseAngle = 0; // right
+
+    const beamDist = 65;
+    const halfSpread = 0.35; // ~20 degrees on each side
+
+    const angle1 = baseAngle - halfSpread;
+    const angle2 = baseAngle + halfSpread;
+
+    const p1x = px + Math.cos(angle1) * beamDist;
+    const p1y = py + Math.sin(angle1) * beamDist;
+    const p2x = px + Math.cos(angle2) * beamDist;
+    const p2y = py + Math.sin(angle2) * beamDist;
+
+    // Soft warm outer light fan
+    this.flashlightGraphics.fillStyle(0xFDF8EB, 0.12);
+    this.flashlightGraphics.fillTriangle(px, py, p1x, p1y, p2x, p2y);
+
+    // Subtle brighter inner beam core
+    const p1InX = px + Math.cos(baseAngle - halfSpread * 0.5) * (beamDist * 0.85);
+    const p1InY = py + Math.sin(baseAngle - halfSpread * 0.5) * (beamDist * 0.85);
+    const p2InX = px + Math.cos(baseAngle + halfSpread * 0.5) * (beamDist * 0.85);
+    const p2InY = py + Math.sin(baseAngle + halfSpread * 0.5) * (beamDist * 0.85);
+    this.flashlightGraphics.fillStyle(0xDCE38A, 0.16);
+    this.flashlightGraphics.fillTriangle(px, py, p1InX, p1InY, p2InX, p2InY);
+
     // Subtle living warmth over illuminated ground focal points
     if (ch >= 1 && ch <= 5) {
-      const breath = 0.06 + 0.03 * Math.sin(this.sessionElapsedSeconds * 2.5);
+      const breath = 0.08 + 0.04 * Math.sin(this.sessionElapsedSeconds * 2.5);
       this.flashlightGraphics.fillStyle(0xDCE38A, breath);
-      this.flashlightGraphics.fillCircle(160, 92, 24); // Soft warm halo around hedgehog in grass
+      this.flashlightGraphics.fillCircle(160, 92, 22); // Soft warm halo around hedgehog in grass
     } else if (ch === 8) {
-      const breath = 0.08 + 0.04 * Math.sin(this.sessionElapsedSeconds * 3.0);
+      const breath = 0.10 + 0.05 * Math.sin(this.sessionElapsedSeconds * 3.0);
       this.flashlightGraphics.fillStyle(0x789E3E, breath);
       this.flashlightGraphics.fillCircle(245, 65, 20); // Soft bioluminescent glow around mushrooms
     }
