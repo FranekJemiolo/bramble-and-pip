@@ -631,6 +631,30 @@ export class WorldScene extends Phaser.Scene {
             });
             return;
           }
+        } else if (spot.id === 'leaf_pile' || spot.id === 'squirrel_acorn') {
+          if (this.campaign.currentChapter.id === 11 || this.campaign.currentChapter.id === 14) {
+            this.scene.pause('WorldScene');
+            this.scene.launch('PuzzleOverlayScene', {
+              puzzleType: 'autumn_seed_sorting',
+              onComplete: () => {
+                this.showDialogue('Pip: All the acorns, pinecones, and seeds are tucked into cozy baskets! 🍂🐿️', '🌰');
+                this.campaign.completeCurrentChapter();
+              },
+            });
+            return;
+          }
+        } else if (spot.id === 'badger_burrow') {
+          if (this.campaign.currentChapter.id === 16 || this.campaign.currentChapter.id === 18) {
+            this.scene.pause('WorldScene');
+            this.scene.launch('PuzzleOverlayScene', {
+              puzzleType: 'winter_track_spotting',
+              onComplete: () => {
+                this.showDialogue('Pip: We traced all the animal footprints in the snow! 🐾❄️', '🐾');
+                this.campaign.completeCurrentChapter();
+              },
+            });
+            return;
+          }
         }
 
         this.showDialogue(spot.dialogueText, '🔍');
@@ -697,10 +721,29 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
-    if (ch.id === 16) {
-      this.showDialogue('Pip: Big back paws leap ahead of small front paws! The trail leads to the badger mound 🐾❄️', '🐇');
-      audioManager.playPipChirrup();
-      this.campaign.completeCurrentChapter();
+    if (ch.id === 14 || ch.id === 11) {
+      audioManager.playKalimba(2);
+      this.scene.pause('WorldScene');
+      this.scene.launch('PuzzleOverlayScene', {
+        puzzleType: 'autumn_seed_sorting',
+        onComplete: () => {
+          this.showDialogue('Pip: All the acorns, pinecones, and seeds are tucked into cozy baskets! 🍂🐿️', '🌰');
+          this.campaign.completeCurrentChapter();
+        },
+      });
+      return;
+    }
+
+    if (ch.id === 16 || ch.id === 18) {
+      audioManager.playWoodblock();
+      this.scene.pause('WorldScene');
+      this.scene.launch('PuzzleOverlayScene', {
+        puzzleType: 'winter_track_spotting',
+        onComplete: () => {
+          this.showDialogue('Pip: We traced all the animal footprints in the snow! 🐾❄️', '🐾');
+          this.campaign.completeCurrentChapter();
+        },
+      });
       return;
     }
 

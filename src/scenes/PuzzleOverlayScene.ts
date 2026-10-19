@@ -3,10 +3,12 @@ import { BASE_HEIGHT, BASE_WIDTH } from '../core/constants';
 import { eventBus } from '../core/EventBus';
 import { MossyGearboxPuzzle } from '../minigames/MossyGearboxPuzzle';
 import { SteppingStonePuzzle } from '../minigames/SteppingStonePuzzle';
+import { AutumnSeedSortingPuzzle } from '../minigames/AutumnSeedSortingPuzzle';
+import { WinterTrackSpottingPuzzle } from '../minigames/WinterTrackSpottingPuzzle';
 import type { IPuzzle } from '../minigames/types';
 
 export class PuzzleOverlayScene extends Phaser.Scene {
-  private puzzleType: 'mossy_gearbox' | 'stepping_stones' = 'mossy_gearbox';
+  private puzzleType: 'mossy_gearbox' | 'stepping_stones' | 'autumn_seed_sorting' | 'winter_track_spotting' = 'mossy_gearbox';
   private puzzleInstance!: IPuzzle;
   private graphics!: Phaser.GameObjects.Graphics;
   private onCompleteCallback?: () => void;
@@ -15,12 +17,16 @@ export class PuzzleOverlayScene extends Phaser.Scene {
     super('PuzzleOverlayScene');
   }
 
-  init(data: { puzzleType: 'mossy_gearbox' | 'stepping_stones'; onComplete?: () => void }): void {
+  init(data: { puzzleType: 'mossy_gearbox' | 'stepping_stones' | 'autumn_seed_sorting' | 'winter_track_spotting'; onComplete?: () => void }): void {
     this.puzzleType = data.puzzleType;
     this.onCompleteCallback = data.onComplete;
 
     if (this.puzzleType === 'mossy_gearbox') {
       this.puzzleInstance = new MossyGearboxPuzzle();
+    } else if (this.puzzleType === 'autumn_seed_sorting') {
+      this.puzzleInstance = new AutumnSeedSortingPuzzle();
+    } else if (this.puzzleType === 'winter_track_spotting') {
+      this.puzzleInstance = new WinterTrackSpottingPuzzle();
     } else {
       this.puzzleInstance = new SteppingStonePuzzle();
     }
@@ -61,6 +67,10 @@ export class PuzzleOverlayScene extends Phaser.Scene {
       this.setupGearbox(this.puzzleInstance);
     } else if (this.puzzleInstance instanceof SteppingStonePuzzle) {
       this.setupSteppingStones(this.puzzleInstance);
+    } else if (this.puzzleInstance instanceof AutumnSeedSortingPuzzle) {
+      this.setupSeedSorting(this.puzzleInstance);
+    } else if (this.puzzleInstance instanceof WinterTrackSpottingPuzzle) {
+      this.setupTrackSpotting(this.puzzleInstance);
     }
 
     this.puzzleInstance.onSolve(() => {
@@ -105,6 +115,66 @@ export class PuzzleOverlayScene extends Phaser.Scene {
       const stepped = stones.tap(p.x, p.y);
       if (stepped) {
         eventBus.emit('audio:sfx', { sound: 'water_bubble' });
+      }
+    });
+  }
+
+  private setupSeedSorting(sorting: AutumnSeedSortingPuzzle): void {
+    let activeSeedId: string | null = null;
+
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      for (const seed of sorting.seeds) {
+        if (!seed.isPlaced && Phaser.Math.Distance.Between(p.x, p.y, seed.x, seed.y) < 32) {
+          activeSeedId = seed.id;
+          sorting.dragSeed(seed.id, p.x, p.y);
+          break;
+        }
+      }
+    });
+
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (activeSeedId) {
+        sorting.dragSeed(activeSeedId, p.x, p.y);
+      }
+    });
+
+    this.input.on('pointerup', () => {
+      if (activeSeedId) {
+        const snapped = sorting.releaseSeed(activeSeedId);
+        if (snapped) {
+          eventBus.emit('audio:sfx', { sound: 'water_bubble' });
+        }
+        activeSeedId = null;
+      }
+    });
+  }
+
+  private setupTrackSpotting(trackSpotting: WinterTrackSpottingPuzzle): void {
+    let activeTrackId: string | null = null;
+
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      for (const track of trackSpotting.trackStamps) {
+        if (!track.isMatched && Phaser.Math.Distance.Between(p.x, p.y, track.x, track.y) < 32) {
+          activeTrackId = track.id;
+          trackSpotting.dragTrack(track.id, p.x, p.y);
+          break;
+        }
+      }
+    });
+
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (activeTrackId) {
+        trackSpotting.dragTrack(activeTrackId, p.x, p.y);
+      }
+    });
+
+    this.input.on('pointerup', () => {
+      if (activeTrackId) {
+        const snapped = trackSpotting.releaseTrack(activeTrackId);
+        if (snapped) {
+          eventBus.emit('audio:sfx', { sound: 'water_bubble' });
+        }
+        activeTrackId = null;
       }
     });
   }
@@ -158,6 +228,82 @@ export class PuzzleOverlayScene extends Phaser.Scene {
       if (!sp.isSolved) {
         this.graphics.fillStyle(0x9B4E28, 1.0);
         this.graphics.fillCircle(BASE_WIDTH / 2, 72, 8);
+      }
+    } else if (this.puzzleInstance instanceof AutumnSeedSortingPuzzle) {
+      const asp = this.puzzleInstance;
+
+      // Draw Autumn forest floor container
+      this.graphics.fillStyle(0xD99E5C, 0.25);
+      this.graphics.fillRect(36, 68, 248, 172);
+
+      // Draw Baskets
+      for (const b of asp.baskets) {
+        this.graphics.lineStyle(2, 0x6E4A2F, 0.8);
+        this.graphics.strokeCircle(b.x, b.y, b.radius);
+        this.graphics.fillStyle(b.isFilled ? 0x8FA382 : 0xC49A6C, 0.6);
+        this.graphics.fillCircle(b.x, b.y, b.radius - 2);
+
+        // Magnetic basin indicator
+        this.graphics.lineStyle(1, 0x9B4E28, 0.3);
+        this.graphics.strokeCircle(b.x, b.y, 48);
+      }
+
+      // Draw Seeds
+      for (const s of asp.seeds) {
+        const color = s.type === 'acorn' ? 0x6E4A2F : s.type === 'pinecone' ? 0x4B6B4E : 0xD99E5C;
+        this.graphics.fillStyle(color, 1.0);
+        this.graphics.fillCircle(s.x, s.y, 14);
+        this.graphics.lineStyle(2, 0x1A232A, 1.0);
+        this.graphics.strokeCircle(s.x, s.y, 14);
+
+        if (s.type === 'acorn') {
+          // Cap
+          this.graphics.fillStyle(0x3B281B, 1.0);
+          this.graphics.fillCircle(s.x, s.y - 7, 7);
+        }
+      }
+    } else if (this.puzzleInstance instanceof WinterTrackSpottingPuzzle) {
+      const wtp = this.puzzleInstance;
+
+      // Snow ground
+      this.graphics.fillStyle(0xE8F2F7, 0.5);
+      this.graphics.fillRect(36, 68, 248, 172);
+
+      // Draw animal target cards
+      for (const card of wtp.animalCards) {
+        this.graphics.fillStyle(card.isMatched ? 0x8FA382 : 0xF4EFEA, 0.9);
+        this.graphics.fillRect(card.x - 30, card.y - 25, 60, 50);
+        this.graphics.lineStyle(2, 0x4A6B82, 1.0);
+        this.graphics.strokeRect(card.x - 30, card.y - 25, 60, 50);
+
+        // Magnetic snap radius
+        this.graphics.lineStyle(1, 0x7393B3, 0.3);
+        this.graphics.strokeCircle(card.x, card.y, 48);
+      }
+
+      // Draw track stamps
+      for (const track of wtp.trackStamps) {
+        this.graphics.fillStyle(0x3A5369, 1.0);
+        this.graphics.fillCircle(track.x, track.y, 12);
+        this.graphics.lineStyle(1, 0xF4EFEA, 1.0);
+        this.graphics.strokeCircle(track.x, track.y, 12);
+
+        // Track prints
+        this.graphics.fillStyle(0xF4EFEA, 1.0);
+        if (track.trackType === 'badger') {
+          for (let i = 0; i < 5; i++) {
+            this.graphics.fillCircle(track.x - 6 + i * 3, track.y - 4, 1.5);
+          }
+          this.graphics.fillCircle(track.x, track.y + 3, 4);
+        } else if (track.trackType === 'rabbit') {
+          this.graphics.fillCircle(track.x - 3, track.y - 3, 2);
+          this.graphics.fillCircle(track.x + 3, track.y - 3, 2);
+          this.graphics.fillCircle(track.x, track.y + 4, 3);
+        } else {
+          this.graphics.fillCircle(track.x, track.y, 2);
+          this.graphics.fillCircle(track.x - 4, track.y - 4, 1.5);
+          this.graphics.fillCircle(track.x + 4, track.y - 4, 1.5);
+        }
       }
     }
   }
