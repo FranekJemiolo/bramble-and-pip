@@ -97,6 +97,7 @@ export class WorldScene extends Phaser.Scene {
   private animals: InteractiveAnimal[] = [];
   private natureTracks: NatureTrack[] = [];
   private collectibles: CollectibleItem[] = [];
+  private floraSprites: Phaser.GameObjects.Sprite[] = [];
   private stepSoundTimer = 0;
   private activeDPadDirection: 'up' | 'down' | 'left' | 'right' | null = null;
   private dpadPulseTimer = 0;
@@ -137,8 +138,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   async preload(): Promise<void> {
-    this.bakeProceduralTextures();
     await registerCanonicalTextures(this);
+    this.bakeProceduralTextures();
   }
 
   private bakeProceduralTextures(): void {
@@ -156,23 +157,45 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
-    // Environment and props
-    this.textureBank.register('tile_grass', TileGenerator.generateAutotile(15, 5, 4));
-    this.textureBank.register('tile_dirt', TileGenerator.generateAutotile(15, 8, 3));
-    this.textureBank.register('tile_water', TileGenerator.generateWaterTile(0));
-    this.textureBank.register('tile_tree', TileGenerator.generatePineTree());
-    this.textureBank.register('tile_watermill', TileGenerator.generateCabinProp('wall'));
-    this.textureBank.register('tile_lilypad', TileGenerator.generateLilyPad(3));
+    // Environment and props - only register fallback procedural textures if canonical textures are not already present
+    if (!this.textures.exists('tile_grass')) {
+      this.textureBank.register('tile_grass', TileGenerator.generateAutotile(15, 5, 4));
+    }
+    if (!this.textures.exists('tile_dirt')) {
+      this.textureBank.register('tile_dirt', TileGenerator.generateAutotile(15, 8, 3));
+    }
+    if (!this.textures.exists('tile_water')) {
+      this.textureBank.register('tile_water', TileGenerator.generateWaterTile(0));
+    }
+    if (!this.textures.exists('tile_tree')) {
+      this.textureBank.register('tile_tree', TileGenerator.generatePineTree());
+    }
+    if (!this.textures.exists('tile_watermill')) {
+      this.textureBank.register('tile_watermill', TileGenerator.generateCabinProp('wall'));
+    }
+    if (!this.textures.exists('tile_lilypad')) {
+      this.textureBank.register('tile_lilypad', TileGenerator.generateLilyPad(3));
+    }
 
     // Nature items
-    this.textureBank.register('item_acorn', SpriteGenerator.generateItemIcon('acorn'));
-    this.textureBank.register('item_pinecone', SpriteGenerator.generateItemIcon('pinecone'));
-    this.textureBank.register('item_leaf_oak', SpriteGenerator.generateItemIcon('leaf_oak'));
-    this.textureBank.register('item_lantern', SpriteGenerator.generateItemIcon('lantern'));
+    if (!this.textures.exists('item_acorn')) {
+      this.textureBank.register('item_acorn', SpriteGenerator.generateItemIcon('acorn'));
+    }
+    if (!this.textures.exists('item_pinecone')) {
+      this.textureBank.register('item_pinecone', SpriteGenerator.generateItemIcon('pinecone'));
+    }
+    if (!this.textures.exists('item_leaf_oak')) {
+      this.textureBank.register('item_leaf_oak', SpriteGenerator.generateItemIcon('leaf_oak'));
+    }
+    if (!this.textures.exists('item_lantern')) {
+      this.textureBank.register('item_lantern', SpriteGenerator.generateItemIcon('lantern'));
+    }
 
-    // Upload procedural textures
+    // Upload procedural textures only if not already loaded into Phaser
     for (const key of this.textureBank.getKeys()) {
-      this.textureBank.uploadToPhaser(this, key);
+      if (!this.textures.exists(key)) {
+        this.textureBank.uploadToPhaser(this, key);
+      }
     }
   }
 
@@ -797,8 +820,17 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  private addFlora(key: string, x: number, y: number, scale = 0.38, depth = 8): void {
+    if (!this.textures.exists(key)) return;
+    const sprite = this.add.sprite(x, y, key);
+    sprite.setScale(scale);
+    sprite.setOrigin(0.5, 0.9);
+    sprite.setDepth(depth);
+    this.floraSprites.push(sprite);
+  }
+
   private spawnWoodlandWildlife(mapId?: MapId): void {
-    // 1. Clear existing wildlife and track sprites
+    // 1. Clear existing wildlife, track, and flora sprites
     for (const a of this.animals) {
       a.sprite.destroy();
     }
@@ -808,6 +840,11 @@ export class WorldScene extends Phaser.Scene {
       t.sprite.destroy();
     }
     this.natureTracks = [];
+
+    for (const f of this.floraSprites) {
+      f.destroy();
+    }
+    this.floraSprites = [];
 
     // 2. Overworld Collectibles (instantiated once)
     if (this.collectibles.length === 0) {
@@ -833,9 +870,28 @@ export class WorldScene extends Phaser.Scene {
         this.addFauna('insect', 'insect_snail', 220, 110, 0.28, 'Mossy Snail', ['SLOW', 'SLIDE', 'STONE'], 'Pip: Leaving a silvery trail across the smooth patio stone!', 'woodblock');
         this.addTrack('track_bird', 'track_bird_3toed', 180, 110, 0.32, 'Three-Toed Sparrow Trail', 'Tiny three-toed bird tracks leading to the garden water saucer.');
         this.addTrack('track_mud', 'track_mud_puddle', 135, 140, 0.32, 'Soft Garden Mud Print', 'Damp earth mounds and muddy paw prints beside the vegetable garden path.');
+        this.addFlora('flower_primrose', 70, 115, 0.32, 12);
+        this.addFlora('flower_dandelion', 120, 125, 0.30, 12);
+        this.addFlora('clover_four_leaf', 160, 115, 0.28, 12);
+        this.addFlora('sprout_sapling', 215, 75, 0.34, 12);
+        this.addFlora('stump_small_birch', 270, 75, 0.35, 12);
         break;
 
       case 'whispering_woods':
+        this.addFauna('beaver', 'beaver_carry_log', 58, 140, 0.40, 'River Beaver', ['CHOP', 'WOOD', 'POND'], 'Pip: Hard at work transporting birch logs to reinforce the river lodge!', 'woodblock');
+        this.addFauna('frog', 'frog_idle_front', 38, 124, 0.32, 'Brook Frog', ['JUMP', 'SPLASH', 'LILY'], 'Pip: Sunbathing peacefully on a mossy pebble by the stepping stones!', 'kalimba');
+        this.addFauna('goose', 'goose_swim', 62, 160, 0.36, 'Canada Goose', ['SWIM', 'COOL', 'LAKE'], 'Pip: Paddling smoothly through the clear river shallows!', 'chime');
+        this.addFauna('cardinal', 'cardinal_perch_branch', 190, 68, 0.32, 'Northern Cardinal', ['RED', 'BIRD', 'SING'], 'Pip: Brilliant scarlet plumage glowing against the woodland birch bark!', 'chime');
+        this.addFauna('insect', 'insect_green_beetle', 120, 110, 0.28, 'Emerald Beetle', ['CRAWL', 'SHINY', 'BARK'], 'Pip: An iridescent green beetle hunting for lichen under old roots!', 'woodblock');
+        this.addTrack('track_bird', 'track_bird_y', 74, 128, 0.32, 'Waterbird Y-Tracks', 'Classic three-toed Y-shaped waterfowl prints in the riverbank sand.');
+        this.addTrack('track_rabbit', 'track_rabbit_stride', 140, 88, 0.32, 'Hopping Rabbit Strides', 'Light pair-spread paw prints bounding through the woodland path.');
+        this.addFlora('tree_oak_summer', 260, 48, 0.40, 10);
+        this.addFlora('fern_summer', 110, 100, 0.35, 10);
+        this.addFlora('reed_cattail_cluster', 50, 150, 0.36, 11);
+        this.addFlora('lilypad_flower', 45, 165, 0.34, 11);
+        this.addFlora('obstacle_flat_stones', 75, 145, 0.34, 9);
+        break;
+
       case 'pebble_creek':
         this.addFauna('beaver', 'beaver_carry_log', 58, 140, 0.40, 'River Beaver', ['CHOP', 'WOOD', 'POND'], 'Pip: Hard at work transporting birch logs to reinforce the river lodge!', 'woodblock');
         this.addFauna('frog', 'frog_idle_front', 38, 124, 0.32, 'Brook Frog', ['JUMP', 'SPLASH', 'LILY'], 'Pip: Sunbathing peacefully on a mossy pebble by the stepping stones!', 'kalimba');
@@ -844,6 +900,14 @@ export class WorldScene extends Phaser.Scene {
         this.addFauna('insect', 'insect_green_beetle', 120, 110, 0.28, 'Emerald Beetle', ['CRAWL', 'SHINY', 'BARK'], 'Pip: An iridescent green beetle hunting for lichen under old roots!', 'woodblock');
         this.addTrack('track_bird', 'track_bird_y', 74, 128, 0.32, 'Waterbird Y-Tracks', 'Classic three-toed Y-shaped waterfowl prints in the riverbank sand.');
         this.addTrack('track_rabbit', 'track_rabbit_stride', 140, 88, 0.32, 'Hopping Rabbit Strides', 'Light pair-spread paw prints bounding through the woodland path.');
+        // Subitizing lily pads with 1 to 5 dots for early-math steps across Pebble Creek
+        this.addFlora('lilypad_subitize_1', 45, 125, 0.36, 11);
+        this.addFlora('lilypad_subitize_2', 60, 138, 0.36, 11);
+        this.addFlora('lilypad_subitize_3', 50, 150, 0.36, 11);
+        this.addFlora('lilypad_subitize_4', 65, 162, 0.36, 11);
+        this.addFlora('lilypad_subitize_5', 55, 175, 0.36, 11);
+        this.addFlora('reed_cattail_cluster', 75, 140, 0.35, 10);
+        this.addFlora('tree_birch_summer', 280, 55, 0.38, 10);
         break;
 
       case 'mossy_hollow':
@@ -854,6 +918,11 @@ export class WorldScene extends Phaser.Scene {
         this.addFauna('insect', 'insect_caterpillar_walk', 95, 135, 0.28, 'Striped Caterpillar', ['INCH', 'GREEN', 'LEAF'], 'Pip: Slowly inching along a mossy fallen log toward fresh willow leaves!', 'woodblock');
         this.addTrack('track_badger', 'track_badger_claw', 140, 95, 0.32, 'Five-Clawed Badger Tracks', 'Broad palm impression with five sharp digging claws in soft loam.');
         this.addTrack('track_rabbit', 'track_rabbit_stride', 80, 125, 0.32, 'Rabbit Stride Trail', 'Distinct leap strides leading toward the hollow blackberry thicket.');
+        this.addFlora('fungi_bioluminescent', 175, 60, 0.38, 10);
+        this.addFlora('log_mossy_large', 95, 140, 0.36, 9);
+        this.addFlora('fern_summer', 60, 95, 0.34, 10);
+        this.addFlora('bramble_dense_summer', 240, 110, 0.35, 10);
+        this.addFlora('stump_summer_broken', 135, 65, 0.36, 9);
         break;
 
       case 'mossy_gearbox':
@@ -864,6 +933,10 @@ export class WorldScene extends Phaser.Scene {
         this.addFauna('goose', 'goose_glide', 250, 65, 0.36, 'Gliding Goose', ['SOAR', 'WIND', 'HIGH'], 'Pip: Banking gracefully on autumn thermal winds above the millpool!', 'chime');
         this.addTrack('track_badger', 'track_badger_claw', 195, 135, 0.32, 'Webbed Badger & Beaver Trail', 'Clawed footprints pressed into wet river sediment beside the mill.');
         this.addTrack('track_mud', 'track_mud_puddle', 140, 140, 0.32, 'Splash Pool Mud Mark', 'Wet mud trails where river animals climbed ashore.');
+        this.addFlora('obstacle_mossy_log', 195, 145, 0.38, 9);
+        this.addFlora('bramble_autumn_berries', 130, 85, 0.35, 10);
+        this.addFlora('reed_cattail_pair', 240, 45, 0.36, 10);
+        this.addFlora('water_edge_bank', 160, 150, 0.34, 8);
         break;
 
       case 'sunset_meadow':
@@ -874,6 +947,11 @@ export class WorldScene extends Phaser.Scene {
         this.addFauna('insect', 'insect_bumblebee', 80, 115, 0.28, 'Sunset Honeybee', ['BUZZ', 'WARM', 'HIVE'], 'Pip: Finishing the last flower run before returning to the hive for bed!', 'chime');
         this.addTrack('track_deer', 'track_deer_hoof', 200, 115, 0.32, 'Cloven Deer Hoof Marks', 'Crisp two-toed heart-shaped deer prints along the meadow path.');
         this.addTrack('track_rabbit', 'track_rabbit_stride', 125, 145, 0.32, 'Meandering Hare Trail', 'Swift hopping strides zig-zagging between clover clumps.');
+        this.addFlora('tree_oak_autumn_gold', 255, 50, 0.40, 10);
+        this.addFlora('fern_autumn', 145, 110, 0.34, 10);
+        this.addFlora('flower_dandelion', 95, 125, 0.30, 12);
+        this.addFlora('flower_marigold', 170, 130, 0.30, 12);
+        this.addFlora('item_maple_seed_pair', 120, 140, 0.30, 12);
         break;
 
       case 'pine_ridge':
@@ -883,6 +961,11 @@ export class WorldScene extends Phaser.Scene {
         this.addFauna('sparrow', 'sparrow_look_up', 75, 88, 0.32, 'Mountain Sparrow', ['CHIRP', 'PINE', 'CONE'], 'Pip: Peering up at the towering conifer canopy!', 'chime');
         this.addTrack('track_bear', 'track_bear_paw', 220, 110, 0.34, 'Heavy Bear Paw Prints', 'Large five-toed paw impression with deep claw marks in mountain loam.');
         this.addTrack('track_deer', 'track_deer_hoof', 150, 115, 0.32, 'Sharp Mountain Hoof Marks', 'Deep hoof prints pressed into the firm alpine dirt path.');
+        this.addFlora('shrub_pine_summer', 270, 45, 0.42, 10);
+        this.addFlora('obstacle_boulder_cluster', 210, 115, 0.38, 9);
+        this.addFlora('shrub_pine_dark', 90, 80, 0.35, 10);
+        this.addFlora('item_stick_branch', 130, 120, 0.30, 12);
+        this.addFlora('item_pinecone_rich', 170, 95, 0.30, 12);
         break;
 
       case 'ranger_lodge':
@@ -895,6 +978,12 @@ export class WorldScene extends Phaser.Scene {
         this.addTrack('track_bear', 'track_bear_paw', 235, 80, 0.34, 'Snow Bear Tracks', 'Heavy padded paw impressions sunk into winter snowdrifts.');
         this.addTrack('track_bird', 'track_bird_y', 255, 168, 0.32, 'Snow Bird Prints', 'Delicate three-toed trail across fresh winter powder.');
         this.addTrack('track_rabbit', 'track_rabbit_stride', 160, 168, 0.32, 'Snow Rabbit Bounding', 'Long bounding leaps stamped into the crisp snow.');
+        this.addFlora('tree_pine_winter_snow', 240, 42, 0.42, 10);
+        this.addFlora('brush_winter_bare', 120, 68, 0.34, 10);
+        this.addFlora('snowdrift_patch_small', 175, 168, 0.36, 9);
+        this.addFlora('obstacle_ice_step_1', 240, 155, 0.34, 9);
+        this.addFlora('obstacle_ice_step_2', 255, 160, 0.34, 9);
+        this.addFlora('obstacle_ice_step_3', 270, 165, 0.34, 9);
         break;
     }
   }
