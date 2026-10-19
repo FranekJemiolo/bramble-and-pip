@@ -11,6 +11,8 @@ export type MapId =
 export interface MapExit {
   x: number; // tile x
   y: number; // tile y
+  radius?: number; // pixel trigger radius
+  direction: 'east' | 'west' | 'north' | 'south' | 'door';
   targetMap: MapId;
   targetSpawn: { x: number; y: number }; // pixel position
 }
@@ -51,8 +53,8 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
       '##...###############',
       '#............#######',
       '.............#######',
-      '...................#',
-      '..............######',
+      '....................',
+      '....................',
       '..............######',
       '##.#####.#...#######',
       '##.#####.....#######',
@@ -61,16 +63,20 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
     ],
     exits: [
       {
-        x: 18,
-        y: 5,
+        x: 19,
+        y: 6,
+        radius: 22,
+        direction: 'east',
         targetMap: 'mossy_gearbox',
-        targetSpawn: { x: 24, y: 80 },
+        targetSpawn: { x: 16, y: 96 },
       },
       {
         x: 10,
         y: 11,
+        radius: 22,
+        direction: 'south',
         targetMap: 'mossy_hollow',
-        targetSpawn: { x: 160, y: 24 },
+        targetSpawn: { x: 160, y: 16 },
       },
     ],
     hotspots: [
@@ -127,25 +133,29 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
       '#######.##.#####...#',
       '#######.##.#####...#',
       '..................##',
-      '#######...#.....####',
+      '..#####...#.....####',
       '#######...##....####',
       '########........####',
       '########........####',
       '########........####',
-      '####################',
+      '########........####',
     ],
     exits: [
       {
         x: 0,
-        y: 5,
+        y: 6,
+        radius: 22,
+        direction: 'west',
         targetMap: 'whispering_woods',
-        targetSpawn: { x: 288, y: 80 },
+        targetSpawn: { x: 304, y: 96 },
       },
       {
-        x: 12,
-        y: 10,
+        x: 9,
+        y: 11,
+        radius: 22,
+        direction: 'south',
         targetMap: 'pine_ridge',
-        targetSpawn: { x: 140, y: 24 },
+        targetSpawn: { x: 144, y: 16 },
       },
     ],
     hotspots: [
@@ -193,8 +203,8 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
       '###.........########',
       '###.........########',
       '###.........########',
-      '###...............##',
-      '..................##',
+      '###.................',
+      '....................',
       '............########',
       '###.........########',
       '###.........########',
@@ -204,14 +214,18 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
       {
         x: 10,
         y: 0,
+        radius: 22,
+        direction: 'north',
         targetMap: 'whispering_woods',
-        targetSpawn: { x: 160, y: 160 },
+        targetSpawn: { x: 160, y: 176 },
       },
       {
-        x: 18,
-        y: 7,
+        x: 19,
+        y: 6,
+        radius: 22,
+        direction: 'east',
         targetMap: 'pine_ridge',
-        targetSpawn: { x: 24, y: 80 },
+        targetSpawn: { x: 16, y: 104 },
       },
     ],
     hotspots: [
@@ -246,11 +260,11 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
     collisionRows: [
       '######....##########',
       '####........########',
-      '####...##...########',
+      '...#...##...########',
       '......####.......###',
       '......####.......###',
       '......####.......###',
-      '.......##........###',
+      '..................##',
       '..................##',
       '##.#####.........###',
       '##.#####.........###',
@@ -260,21 +274,27 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
     exits: [
       {
         x: 0,
-        y: 5,
+        y: 6,
+        radius: 22,
+        direction: 'west',
         targetMap: 'mossy_hollow',
-        targetSpawn: { x: 280, y: 116 },
+        targetSpawn: { x: 304, y: 104 },
       },
       {
         x: 9,
         y: 0,
+        radius: 22,
+        direction: 'north',
         targetMap: 'mossy_gearbox',
-        targetSpawn: { x: 190, y: 156 },
+        targetSpawn: { x: 144, y: 176 },
       },
       {
-        x: 14,
-        y: 4,
+        x: 1,
+        y: 2,
+        radius: 22,
+        direction: 'door',
         targetMap: 'ranger_lodge',
-        targetSpawn: { x: 260, y: 90 },
+        targetSpawn: { x: 260, y: 100 },
       },
     ],
     hotspots: [
@@ -322,10 +342,12 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
     ],
     exits: [
       {
-        x: 18,
-        y: 5,
+        x: 17,
+        y: 6,
+        radius: 24,
+        direction: 'door',
         targetMap: 'pine_ridge',
-        targetSpawn: { x: 220, y: 80 },
+        targetSpawn: { x: 32, y: 48 },
       },
     ],
     hotspots: [

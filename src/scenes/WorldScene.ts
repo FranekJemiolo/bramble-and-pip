@@ -26,6 +26,7 @@ import {
   MAP_DEFINITIONS,
   createCollisionGridForMap,
   getMapIdForChapter,
+  type MapExit,
   type MapId,
 } from '../core/world/mapData';
 
@@ -97,6 +98,9 @@ export class WorldScene extends Phaser.Scene {
 
   // Canonical Scene Background GameObject (320x192)
   private backdropImage!: Phaser.GameObjects.Image;
+  private transitionBackdropImage?: Phaser.GameObjects.Image;
+  private isTransitioning = false;
+  private exitCooldownTimer = 0;
 
   // Carved wooden location banner in top-left
   private locationSignText!: Phaser.GameObjects.Text;
@@ -203,6 +207,12 @@ export class WorldScene extends Phaser.Scene {
     // 3. Render Canonical Map Backdrop (320x192)
     this.backdropImage = this.add.image(0, 0, mapDef.textureKey).setOrigin(0, 0);
     this.backdropImage.setDisplaySize(BASE_WIDTH, 192);
+    this.backdropImage.setDepth(0);
+
+    this.transitionBackdropImage = this.add.image(0, 0, mapDef.textureKey).setOrigin(0, 0);
+    this.transitionBackdropImage.setDisplaySize(BASE_WIDTH, 192);
+    this.transitionBackdropImage.setDepth(1);
+    this.transitionBackdropImage.setVisible(false);
 
     // 4. Setup Flashlight Lighting Cone
     this.flashlightGraphics = this.add.graphics();
@@ -358,6 +368,10 @@ export class WorldScene extends Phaser.Scene {
     if (this.backdropImage) {
       this.backdropImage.setTexture(def.textureKey);
       this.backdropImage.setDisplaySize(BASE_WIDTH, 192);
+      this.backdropImage.setPosition(0, 0);
+    }
+    if (this.transitionBackdropImage) {
+      this.transitionBackdropImage.setVisible(false);
     }
 
     const targetPos = spawn ?? def.defaultSpawn;
@@ -367,23 +381,169 @@ export class WorldScene extends Phaser.Scene {
       this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
     }
     if (this.pipCompanion) {
-      this.pipCompanion.reset(this.playerBody.x - 16, this.playerBody.y);
+      this.pipCompanion.reset(this.playerBody.x - 16, this.playerBody.y, this.playerBody.facing);
     }
     if (this.pipSprite) {
       this.pipSprite.setPosition(this.playerBody.x - 16, this.playerBody.y);
     }
     this.currentWaypoints = [];
 
-    this.updateCurrentRegionName();
+    if (this.locationSignText && def) {
+      this.locationSignText.setText(def.displayName);
+    }
     this.setupSceneHotspots();
+    this.exitCooldownTimer = 600;
+  }
+
+  private transitionToMap(exit: MapExit): void {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+    this.exitCooldownTimer = 600;
+    this.currentWaypoints = [];
+
+    const targetDef = MAP_DEFINITIONS[exit.targetMap];
+    if (!targetDef) {
+      this.isTransitioning = false;
+      return;
+    }
+
+    // Doorway transition (e.g. cabin entrance/exit) or chapter jump: warm hearth cross-fade
+    if (exit.direction === 'door') {
+      audioManager.playKalimba(2);
+      this.cameras.main.fadeOut(220, 24, 18, 12);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        this.loadMap(exit.targetMap, exit.targetSpawn);
+        this.cameras.main.fadeIn(260, 24, 18, 12);
+        this.time.delayedCall(280, () => {
+          this.exitCooldownTimer = 600;
+          this.isTransitioning = false;
+        });
+      });
+      return;
+    }
+
+    // Directional Screen Slide (east / west / north / south)
+    audioManager.playKalimba(3);
+
+    if (this.transitionBackdropImage && this.backdropImage) {
+      this.transitionBackdropImage.setTexture(targetDef.textureKey);
+      this.transitionBackdropImage.setDisplaySize(BASE_WIDTH, 192);
+      this.transitionBackdropImage.setVisible(true);
+
+      const isEast = exit.direction === 'east';
+      const isWest = exit.direction === 'west';
+      const isSouth = exit.direction === 'south';
+      const isNorth = exit.direction === 'north';
+
+      // Start position of incoming backdrop
+      const initIncomingX = isEast ? BASE_WIDTH : isWest ? -BASE_WIDTH : 0;
+      const initIncomingY = isSouth ? 192 : isNorth ? -192 : 0;
+      this.transitionBackdropImage.setPosition(initIncomingX, initIncomingY);
+
+      // Target positions for current backdrop
+      const targetCurrX = isEast ? -BASE_WIDTH : isWest ? BASE_WIDTH : 0;
+      const targetCurrY = isSouth ? -192 : isNorth ? 192 : 0;
+
+      // Start and end positions for Bramble & Pip
+      const targetPlayerX = exit.targetSpawn.x;
+      const targetPlayerY = exit.targetSpawn.y;
+      const facing: Facing = isEast ? 'right' : isWest ? 'left' : isSouth ? 'down' : 'up';
+      this.playerBody.facing = facing;
+
+      // Animate current backdrop out
+      this.tweens.add({
+        targets: this.backdropImage,
+        x: targetCurrX,
+        y: targetCurrY,
+        duration: 400,
+        ease: 'Cubic.easeInOut',
+      });
+
+      // Animate incoming backdrop in
+      this.tweens.add({
+        targets: this.transitionBackdropImage,
+        x: 0,
+        y: 0,
+        duration: 400,
+        ease: 'Cubic.easeInOut',
+      });
+
+      // Subtle flip/fade on carved location banner
+      if (this.locationSignText) {
+        this.tweens.add({
+          targets: this.locationSignText,
+          alpha: 0,
+          duration: 150,
+          onComplete: () => {
+            this.locationSignText.setText(targetDef.displayName);
+            this.tweens.add({
+              targets: this.locationSignText,
+              alpha: 1,
+              duration: 200,
+            });
+          },
+        });
+      }
+
+      let walkAnimTimer = 0;
+      this.tweens.add({
+        targets: this.playerSprite,
+        x: targetPlayerX,
+        y: targetPlayerY,
+        duration: 400,
+        ease: 'Linear',
+        onUpdate: () => {
+          this.playerBody.x = this.playerSprite.x;
+          this.playerBody.y = this.playerSprite.y;
+          walkAnimTimer += 16;
+          const frame = Math.floor(walkAnimTimer / 120) % 4;
+          this.playerSprite.setTexture(`ranger_${facing}_${frame}`);
+          this.pipSprite.setTexture(`pip_FOLLOWING_${frame}`);
+          const pipOffset = isEast ? -16 : isWest ? 16 : 0;
+          const pipOffsetY = isSouth ? -16 : isNorth ? 16 : 0;
+          this.pipSprite.setPosition(this.playerSprite.x + pipOffset, this.playerSprite.y + pipOffsetY);
+        },
+        onComplete: () => {
+          this.loadMap(exit.targetMap, exit.targetSpawn);
+          this.backdropImage.setPosition(0, 0);
+          this.transitionBackdropImage?.setVisible(false);
+          this.exitCooldownTimer = 600;
+          this.isTransitioning = false;
+        },
+      });
+    } else {
+      this.loadMap(exit.targetMap, exit.targetSpawn);
+      this.exitCooldownTimer = 600;
+      this.isTransitioning = false;
+    }
   }
 
   private switchChapter(chapterId: number): void {
     this.campaign.startChapter(chapterId);
     const targetMap = getMapIdForChapter(chapterId);
-    this.loadMap(targetMap);
-    this.updateChapterDialogue();
+    if (this.currentMapId === targetMap) {
+      this.updateChapterDialogue();
+      audioManager.playKalimba(chapterId % 5);
+      return;
+    }
+
+    if (this.isTransitioning) {
+      this.loadMap(targetMap);
+      this.updateChapterDialogue();
+      return;
+    }
+
+    this.isTransitioning = true;
     audioManager.playKalimba(chapterId % 5);
+    this.cameras.main.fadeOut(200, 20, 16, 12);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.loadMap(targetMap);
+      this.updateChapterDialogue();
+      this.cameras.main.fadeIn(250, 20, 16, 12);
+      this.time.delayedCall(270, () => {
+        this.isTransitioning = false;
+      });
+    });
   }
 
   private setupSceneHotspots(): void {
@@ -594,6 +754,9 @@ export class WorldScene extends Phaser.Scene {
 
     // Tap-to-move pathfinding with UI click isolation
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, currentlyOver?: Phaser.GameObjects.GameObject[]) => {
+      // 0. Ignore if scene transition is currently playing
+      if (this.isTransitioning) return;
+
       // 1. Ignore Satchel area touches (handled by SatchelUIScene)
       if (pointer.y >= 192) return;
 
@@ -668,6 +831,10 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // 3. Unified Navigation Movement (Keyboard WASD / Arrows + Satchel D-Pad)
+    if (this.isTransitioning) {
+      return;
+    }
+
     let vx = 0;
     let vy = 0;
     if (this.cursors?.left.isDown || this.wasdKeys?.left.isDown || this.activeDPadDirection === 'left') vx -= 1;
@@ -742,15 +909,30 @@ export class WorldScene extends Phaser.Scene {
       this.pipSprite.setTexture('pip_IDLE_CURIOUS_0');
     }
 
-    // Check map exits
+    // Check map exits with smooth transition
+    if (this.exitCooldownTimer > 0) {
+      this.exitCooldownTimer -= delta;
+    }
     const currentDef = MAP_DEFINITIONS[this.currentMapId];
-    if (currentDef && currentDef.exits.length > 0) {
+    if (currentDef && currentDef.exits.length > 0 && !this.isTransitioning && this.exitCooldownTimer <= 0 && isMoving) {
       for (const exit of currentDef.exits) {
+        let matchesDirection = true;
+        if (exit.direction === 'east') {
+          matchesDirection = vx > 0 || (this.currentWaypoints.length > 0 && this.currentWaypoints[0].x > this.playerBody.x);
+        } else if (exit.direction === 'west') {
+          matchesDirection = vx < 0 || (this.currentWaypoints.length > 0 && this.currentWaypoints[0].x < this.playerBody.x);
+        } else if (exit.direction === 'south') {
+          matchesDirection = vy > 0 || (this.currentWaypoints.length > 0 && this.currentWaypoints[0].y > this.playerBody.y);
+        } else if (exit.direction === 'north') {
+          matchesDirection = vy < 0 || (this.currentWaypoints.length > 0 && this.currentWaypoints[0].y < this.playerBody.y);
+        }
+        if (!matchesDirection) continue;
+
         const exitPx = exit.x * 16 + 8;
         const exitPy = exit.y * 16 + 8;
-        if (Math.hypot(this.playerBody.x - exitPx, this.playerBody.y - exitPy) < 16) {
-          audioManager.playKalimba(2);
-          this.loadMap(exit.targetMap, exit.targetSpawn);
+        const trigRadius = exit.radius ?? 20;
+        if (Math.hypot(this.playerBody.x - exitPx, this.playerBody.y - exitPy) < trigRadius) {
+          this.transitionToMap(exit);
           break;
         }
       }
@@ -835,12 +1017,12 @@ export class WorldScene extends Phaser.Scene {
     const px = this.playerBody.x;
     const py = this.playerBody.y;
 
-    if (px >= 320 && py < 192 && this.currentMapId !== 'mossy_gearbox') {
-      this.loadMap('mossy_gearbox', { x: 136, y: 104 });
-    } else if (px >= 320 && py >= 192 && this.currentMapId !== 'pine_ridge') {
-      this.loadMap('pine_ridge', { x: 48, y: 96 });
-    } else if (px < 320 && py >= 192 && this.currentMapId !== 'mossy_hollow') {
-      this.loadMap('mossy_hollow', { x: 140, y: 116 });
+    if (px >= 320 && py < 192 && this.currentMapId !== 'mossy_gearbox' && !this.isTransitioning) {
+      this.loadMap('mossy_gearbox');
+    } else if (px >= 320 && py >= 192 && this.currentMapId !== 'pine_ridge' && !this.isTransitioning) {
+      this.loadMap('pine_ridge');
+    } else if (px < 320 && py >= 192 && this.currentMapId !== 'mossy_hollow' && !this.isTransitioning) {
+      this.loadMap('mossy_hollow');
     }
 
     const def = MAP_DEFINITIONS[this.currentMapId];

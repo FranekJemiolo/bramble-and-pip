@@ -65,15 +65,21 @@ describe('Map Definitions & Collision Grids', () => {
     }
   });
 
-  it('exits point to valid targets and walkable target spawns', () => {
+  it('exits point to valid targets, have valid directions, and walkable target spawns', () => {
     for (const id of mapIds) {
       const def = MAP_DEFINITIONS[id];
       for (const exit of def.exits) {
         expect(MAP_DEFINITIONS[exit.targetMap]).toBeDefined();
+        expect(['east', 'west', 'north', 'south', 'door']).toContain(exit.direction);
         const targetGrid = createCollisionGridForMap(exit.targetMap);
         const spawnTileX = Math.floor(exit.targetSpawn.x / 16);
         const spawnTileY = Math.floor(exit.targetSpawn.y / 16);
         expect(targetGrid.isSolid(spawnTileX, spawnTileY), `Exit target spawn on ${exit.targetMap} must be walkable`).toBe(false);
+
+        // Assert symmetrical return exit exists on target map
+        const targetDef = MAP_DEFINITIONS[exit.targetMap];
+        const returnExit = targetDef.exits.find((e) => e.targetMap === id);
+        expect(returnExit, `Return exit from ${exit.targetMap} back to ${id} must exist`).toBeDefined();
       }
     }
   });

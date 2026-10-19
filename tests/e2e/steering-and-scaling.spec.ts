@@ -228,4 +228,65 @@ test.describe('Steering and Canvas Scaling', () => {
     const ridgeRegion = await getRegionText();
     expect(ridgeRegion).toBe('THE PINE RIDGE');
   });
+
+  test('smooth screen slide transition along connecting road from Whispering Woods into Mossy Gearbox and back', async ({ page }) => {
+    await page.goto('./');
+    await page.waitForSelector('#game-container canvas');
+    await page.waitForTimeout(500);
+
+    const getRegionText = () => page.evaluate(() => {
+      const scene = (window as unknown as { __GAME__: Phaser.Game }).__GAME__.scene.getScene('WorldScene') as unknown as {
+        locationSignText: Phaser.GameObjects.Text;
+      };
+      return scene.locationSignText.text;
+    });
+
+    const getPlayerPos = () => page.evaluate(() => {
+      const scene = (window as unknown as { __GAME__: Phaser.Game }).__GAME__.scene.getScene('WorldScene') as unknown as {
+        playerBody: { x: number; y: number };
+      };
+      return { x: scene.playerBody.x, y: scene.playerBody.y };
+    });
+
+    expect(await getRegionText()).toBe('THE WHISPERING WOODS');
+
+    // Position player near East exit on the road (x = 295, y = 96)
+    await page.evaluate(() => {
+      const scene = (window as unknown as { __GAME__: Phaser.Game }).__GAME__.scene.getScene('WorldScene') as unknown as {
+        playerBody: { x: number; y: number; facing: string };
+        playerSprite: Phaser.GameObjects.Sprite;
+      };
+      scene.playerBody.x = 295;
+      scene.playerBody.y = 96;
+      scene.playerBody.facing = 'right';
+      scene.playerSprite.setPosition(295, 96);
+    });
+    await page.waitForTimeout(100);
+
+    // Step East across the road exit boundary
+    await page.keyboard.down('ArrowRight');
+    await page.waitForTimeout(350);
+    await page.keyboard.up('ArrowRight');
+    // Allow smooth slide transition (400ms tween) to complete
+    await page.waitForTimeout(700);
+
+    // Assert smooth transition to Mossy Gearbox completed
+    expect(await getRegionText()).toBe('THE MOSSY GEARBOX');
+    const posInGearbox = await getPlayerPos();
+    // Player entered on the matching West road at x around 16..40, y = 96
+    expect(posInGearbox.x).toBeLessThan(60);
+    expect(posInGearbox.y).toBeCloseTo(96, -1);
+
+    // Step West back across the road exit boundary
+    await page.keyboard.down('ArrowLeft');
+    await page.waitForTimeout(400);
+    await page.keyboard.up('ArrowLeft');
+    await page.waitForTimeout(700);
+
+    // Assert smooth return transition to Whispering Woods
+    expect(await getRegionText()).toBe('THE WHISPERING WOODS');
+    const posInWoods = await getPlayerPos();
+    expect(posInWoods.x).toBeGreaterThan(260);
+    expect(posInWoods.y).toBeCloseTo(96, -1);
+  });
 });
