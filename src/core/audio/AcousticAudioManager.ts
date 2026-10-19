@@ -121,6 +121,10 @@ export class AcousticAudioManager {
     this.playBufferOnBus('woodblock', 'sfx');
   }
 
+  playFootstep(): void {
+    this.playBufferOnBus('woodblock', 'sfx');
+  }
+
   playWaterBubble(): void {
     this.playBufferOnBus('water_bubble', 'sfx');
   }

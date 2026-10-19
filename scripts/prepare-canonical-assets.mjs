@@ -11,55 +11,111 @@ if (!fs.existsSync(TMP_DIR)) {
   fs.mkdirSync(TMP_DIR, { recursive: true });
 }
 
+async function processAsset(inputPath, extractOpts, resizeOpts, outputName, circularMask = false) {
+  const rawPath = path.join(TMP_DIR, `${outputName}_raw.png`);
+  const quantPath = path.join(TMP_DIR, `${outputName}_quant.png`);
+
+  let pipeline = sharp(inputPath);
+  if (extractOpts) {
+    pipeline = pipeline.extract(extractOpts);
+  }
+  if (resizeOpts) {
+    pipeline = pipeline.resize(resizeOpts.width, resizeOpts.height, {
+      kernel: 'lanczos3',
+      fit: resizeOpts.fit || 'cover',
+    });
+  }
+
+  if (circularMask) {
+    const { data, info } = await pipeline.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const w = info.width, h = info.height;
+    const cx = (w - 1) / 2, cy = (h - 1) / 2, r = w / 2;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = (y * w + x) * 4;
+        const dist = Math.hypot(x - cx, y - cy);
+        if (dist >= r - 1.5) {
+          data[idx + 3] = 0;
+        }
+      }
+    }
+    await sharp(data, { raw: { width: w, height: h, channels: 4 } }).png().toFile(rawPath);
+  } else {
+    await pipeline.png().toFile(rawPath);
+  }
+
+  await processRawSprite(rawPath, quantPath);
+  const base64Data = fs.readFileSync(quantPath).toString('base64');
+  console.log(`Processed ${outputName} (${fs.statSync(quantPath).size} bytes)`);
+  return `data:image/png;base64,${base64Data}`;
+}
+
 async function main() {
-  console.log('Extracting and quantizing canonical assets...');
+  console.log('Extracting and quantizing canonical 16-color Whispering Woods assets...');
+  const assetsRecord = {};
 
-  // 1. Ranger Satchel UI (320x96)
-  const satchelRaw = path.join(TMP_DIR, 'satchel_raw.png');
-  const satchelQuant = path.join(TMP_DIR, 'satchel_quant.png');
-  await sharp(path.join(BRAIN_DIR, 'media_1792358512416.jpg'))
-    .extract({ left: 0, top: 510, width: 1024, height: 255 })
-    .resize(320, 96, { kernel: 'lanczos3' })
-    .png()
-    .toFile(satchelRaw);
-  await processRawSprite(satchelRaw, satchelQuant);
+  // 1. Ranger Satchel HUD Base (320x96) from Whispering Woods reference
+  assetsRecord.satchel_bg = await processAsset(
+    path.join(BRAIN_DIR, 'media_1792358613284.jpg'),
+    { left: 0, top: 508, width: 1024, height: 257 },
+    { width: 320, height: 96 },
+    'satchel_bg'
+  );
 
-  // 2. Pip Cameo Portrait (48x48)
-  const pipRaw = path.join(TMP_DIR, 'pip_cameo_raw.png');
-  const pipQuant = path.join(TMP_DIR, 'pip_cameo_quant.png');
-  await sharp(path.join(BRAIN_DIR, 'media_1792358512416.jpg'))
-    .extract({ left: 400, top: 560, width: 220, height: 200 })
-    .resize(48, 48, { kernel: 'lanczos3' })
-    .png()
-    .toFile(pipRaw);
-  await processRawSprite(pipRaw, pipQuant);
+  // 2. Pip Cameos (48x48) with Circular Alpha Mask
+  assetsRecord.pip_cameo_happy = await processAsset(
+    path.join(BRAIN_DIR, 'media_1792358613284.jpg'),
+    { left: 425, top: 570, width: 174, height: 174 },
+    { width: 48, height: 48 },
+    'pip_cameo_happy',
+    true
+  );
+
+  assetsRecord.pip_cameo_thinking = await processAsset(
+    path.join(BRAIN_DIR, 'media_1792358602848.jpg'),
+    { left: 425, top: 570, width: 174, height: 174 },
+    { width: 48, height: 48 },
+    'pip_cameo_thinking',
+    true
+  );
+
+  assetsRecord.pip_cameo_winter = await processAsset(
+    path.join(BRAIN_DIR, 'media_1792358529853.jpg'),
+    { left: 425, top: 570, width: 174, height: 174 },
+    { width: 48, height: 48 },
+    'pip_cameo_winter',
+    true
+  );
+
+  // Default alias
+  assetsRecord.pip_cameo = assetsRecord.pip_cameo_happy;
 
   // 3. World Viewport Backgrounds (each 320x192)
   const scenes = [
     { key: 'whispering_woods', file: 'media_1792358613284.jpg' },
     { key: 'mossy_gearbox', file: 'media_1792358602848.jpg' },
     { key: 'mossy_hollow', file: 'media_1792358607216.jpg' },
+    { key: 'sketchbook', file: 'media_1792358596468.jpg' },
     { key: 'pine_ridge', file: 'media_1792358529853.jpg' },
     { key: 'ranger_lodge', file: 'media_1792358512416.jpg' },
-    { key: 'sketchbook', file: 'media_1792358596468.jpg' },
   ];
 
-  const assetsRecord = {};
-  assetsRecord.satchel_bg = `data:image/png;base64,${fs.readFileSync(satchelQuant).toString('base64')}`;
-  assetsRecord.pip_cameo = `data:image/png;base64,${fs.readFileSync(pipQuant).toString('base64')}`;
-
   for (const sc of scenes) {
-    const rawPath = path.join(TMP_DIR, `${sc.key}_raw.png`);
-    const quantPath = path.join(TMP_DIR, `${sc.key}_quant.png`);
-    await sharp(path.join(BRAIN_DIR, sc.file))
-      .extract({ left: 0, top: 0, width: 1024, height: 510 })
-      .resize(320, 192, { kernel: 'lanczos3' })
-      .png()
-      .toFile(rawPath);
-    await processRawSprite(rawPath, quantPath);
-    assetsRecord[`${sc.key}_bg`] = `data:image/png;base64,${fs.readFileSync(quantPath).toString('base64')}`;
-    console.log(`Processed ${sc.key} (${fs.statSync(quantPath).size} bytes)`);
+    assetsRecord[`${sc.key}_bg`] = await processAsset(
+      path.join(BRAIN_DIR, sc.file),
+      { left: 0, top: 0, width: 1024, height: 508 },
+      { width: 320, height: 192, fit: 'fill' },
+      `${sc.key}_bg`
+    );
   }
+
+  // 4. Woodland Creature & Prop Sprites
+  assetsRecord.beaver_sprite = await processAsset(
+    path.join(BRAIN_DIR, 'media_1792358602848.jpg'),
+    { left: 620, top: 45, width: 140, height: 140 },
+    { width: 36, height: 36 },
+    'beaver_sprite'
+  );
 
   // Generate TypeScript module
   const tsContent = `/**
@@ -68,11 +124,44 @@ async function main() {
  * Pre-encoded as base64 data URIs for zero network egress.
  */
 
+import type Phaser from 'phaser';
+
 export const CANONICAL_ASSETS: Record<string, string> = {
 ${Object.entries(assetsRecord)
   .map(([k, v]) => `  ${k}: '${v}',`)
   .join('\n')}
 };
+
+/**
+ * Registers all canonical textures synchronously or asynchronously into the Phaser TextureManager
+ * using in-memory HTMLImageElement data decoding (zero network egress).
+ */
+export function registerCanonicalTextures(scene: Phaser.Scene): Promise<void> {
+  const entries = Object.entries(CANONICAL_ASSETS);
+  return Promise.all(
+    entries.map(([key, dataUri]) => {
+      return new Promise<void>((resolve) => {
+        if (scene.textures.exists(key)) {
+          resolve();
+          return;
+        }
+        if (typeof Image === 'undefined') {
+          resolve();
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          scene.textures.addImage(key, img);
+          resolve();
+        };
+        img.onerror = () => {
+          resolve();
+        };
+        img.src = dataUri;
+      });
+    })
+  ).then(() => {});
+}
 `;
 
   fs.writeFileSync(OUT_TS, tsContent, 'utf-8');

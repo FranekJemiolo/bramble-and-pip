@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { BASE_WIDTH } from '../core/constants';
 import { eventBus } from '../core/EventBus';
 import type { CampaignManager } from '../core/campaign/CampaignManager';
 import { ParentDashboard } from '../ui/ParentDashboard';
@@ -31,6 +30,8 @@ export class SatchelUIScene extends Phaser.Scene {
     this.parentDashboard = new ParentDashboard(this.campaign);
   }
 
+  private pipCameoImage?: Phaser.GameObjects.Image;
+
   async create(): Promise<void> {
     // 1. Ensure canonical textures are registered in TextureManager
     await registerCanonicalTextures(this);
@@ -54,12 +55,12 @@ export class SatchelUIScene extends Phaser.Scene {
     // 5. Tactile Green Look/Talk Button and Orange Pack Button on the Right
     this.setupActionButtons();
 
-    // 6. Session Clock Text integrated on carved titleplate
-    this.sessionTimerText = this.add.text(BASE_WIDTH / 2, 201, '15:00', {
+    // 6. Session Clock Text positioned discreetly on the top-right border (avoids obscuring title)
+    this.sessionTimerText = this.add.text(306, 198, '15:00', {
       fontFamily: 'monospace',
-      fontSize: '8px',
-      color: '#3B2F2F',
-    }).setOrigin(0.5);
+      fontSize: '7px',
+      color: '#5C4033',
+    }).setOrigin(1, 0.5);
 
     // 7. Global hooks for automated tests & debug access
     if (typeof window !== 'undefined') {
@@ -73,10 +74,35 @@ export class SatchelUIScene extends Phaser.Scene {
       win.__OPEN_CHAPTER_MAP__ = () => this.chapterMapModal.open();
     }
 
-    // Listen for chapter selection
-    eventBus.on('chapter:selected', () => {
+    // Listen for chapter start and puzzle events to update Pip cameo expression
+    eventBus.on('chapter:start', () => {
       this.closePackDrawer();
+      this.updatePipCameo();
     });
+
+    eventBus.on('puzzle:start', () => {
+      this.updatePipCameo('pip_cameo_thinking');
+    });
+
+    eventBus.on('puzzle:solved', () => {
+      this.updatePipCameo('pip_cameo_happy');
+    });
+  }
+
+  private getPipCameoKey(): string {
+    const ch = this.campaign.currentChapter.id;
+    if (ch === 7) return 'pip_cameo_thinking';
+    if (ch >= 16) return 'pip_cameo_winter';
+    return 'pip_cameo_happy';
+  }
+
+  private updatePipCameo(overrideKey?: string): void {
+    const key = overrideKey || this.getPipCameoKey();
+    if (this.pipCameoImage && this.textures.exists(key)) {
+      this.pipCameoImage.setTexture(key);
+      this.pipCameoImage.setDisplaySize(48, 48);
+      this.pipCameoImage.setVisible(key !== 'pip_cameo_happy');
+    }
   }
 
   private setupDPadButtons(): void {
@@ -112,7 +138,15 @@ export class SatchelUIScene extends Phaser.Scene {
   }
 
   private setupPipMedallion(): void {
-    // Pip circular cameo medallion centered at (x: 160, y: 242), radius 24px
+    // Dynamic Cameo Image centered at (x: 160, y: 242)
+    const cameoKey = this.getPipCameoKey();
+    if (this.textures.exists(cameoKey)) {
+      this.pipCameoImage = this.add.image(160, 242, cameoKey).setOrigin(0.5, 0.5);
+      this.pipCameoImage.setDisplaySize(48, 48);
+      this.pipCameoImage.setVisible(cameoKey !== 'pip_cameo_happy');
+    }
+
+    // Pip circular cameo touch zone centered at (x: 160, y: 242), radius 24px
     const pipZone = this.add.circle(160, 242, 24).setInteractive({ cursor: 'pointer' });
 
     // Subtle press pulse effect
@@ -122,6 +156,15 @@ export class SatchelUIScene extends Phaser.Scene {
 
     pipZone.on('pointerdown', () => {
       glowRing.setVisible(true);
+      if (this.pipCameoImage) {
+        this.tweens.add({
+          targets: this.pipCameoImage,
+          scaleX: 1.08,
+          scaleY: 1.08,
+          duration: 100,
+          yoyo: true,
+        });
+      }
       audioManager.playPipChirrup();
       audioManager.playKalimba(2);
       eventBus.emit('pip:interact');

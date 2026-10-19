@@ -14,25 +14,25 @@ A calm, non-addictive, offline-first pedagogical nature adventure for children u
 | ![The Ranger's Lodge](docs/images/ranger_lodge.png) | ![The Pine Ridge](docs/images/pine_ridge.png) |
 | *End-of-campaign celebration feast in the warm cabin with sleeping bear, harvest feast, beavers, and foxes.* | *Winter tracking trail in the snow with chickadees, badger burrow, rabbit pawprints, and flashlight beam.* |
 
-| Whispering Woods Exploration (Ch 1) | The Mossy Gearbox (Ch 7) |
+| Whispering Woods Exploration (Ch 1) | The Mossy Hollow Grotto (Ch 6) |
 |:---:|:---:|
-| ![Whispering Woods](docs/images/whispering_woods.png) | ![The Mossy Gearbox](docs/images/mossy_gearbox.png) |
-| *Bramble & Pip exploring the forest with the carved wooden Ranger Satchel, Pip cameo medallion, and D-pad.* | *Tactile gear-meshing puzzle: place matching wooden cogs onto axles to turn the river waterwheel.* |
+| ![Whispering Woods](docs/images/whispering_woods.png) | ![The Mossy Hollow](docs/images/mossy_hollow.png) |
+| *Bramble & Pip exploring the forest with the carved wooden Ranger Satchel, Pip cameo medallion, and D-pad.* | *Glowing bioluminescent mushrooms, hidden woodland caverns, and curious Pip inspecting flora.* |
 
-| 20-Chapter Four-Season Trail Map | Nature Sketchpad & Field Journal |
+| The Mossy Gearbox (Ch 7) | Nature Sketchpad & Field Journal (Ch 12) |
 |:---:|:---:|
-| ![Whispering Woods Trail Map](docs/images/trail_map.png) | ![Nature Sketchbook](docs/images/nature_sketchbook.png) |
-| *Seamless chapter progression matrix spanning all 4 seasons with completion badges and direct travel.* | *Illustrated nature field journal with wax crayon pigments, track-spotting guides, and offline PDF printables.* |
+| ![The Mossy Gearbox](docs/images/mossy_gearbox.png) | ![Nature Sketchbook](docs/images/nature_sketchbook.png) |
+| *Tactile gear-meshing puzzle: place matching wooden cogs onto axles to turn the river waterwheel.* | *Illustrated nature field journal with wax crayon pigments, track-spotting guides, and offline PDF printables.* |
 
 | In-Game Ranger's Field Manual | Grown-Up Dashboard |
 |:---:|:---:|
 | ![Field Manual](docs/images/field_manual.png) | ![Parent Dashboard](docs/images/parent_dashboard.png) |
 | *Accessible in-game pictorial field guide teaching unhurried movement, Pip companion interactions, and puzzles.* | *Parent area protected by a word-math gate, featuring nature conversation starters and screen limits.* |
 
-| Nocturnal Bedtime Curfew |
-|:---:|
-| ![Bedtime Resting](docs/images/bedtime_resting.png) |
-| *At 15 minutes (or 7:30 PM), twilight settles across the lodge with gentle ember flickers and peaceful rest.* |
+| 20-Chapter Four-Season Trail Map | Nocturnal Bedtime Curfew |
+|:---:|:---:|
+| ![Whispering Woods Trail Map](docs/images/trail_map.png) | ![Bedtime Resting](docs/images/bedtime_resting.png) |
+| *Seamless chapter progression matrix spanning all 4 seasons with completion badges and direct travel.* | *At 15 minutes (or 7:30 PM), twilight settles across the lodge with gentle ember flickers and peaceful rest.* |
 
 ---
 

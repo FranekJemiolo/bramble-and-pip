@@ -34,9 +34,16 @@ async function main() {
   await page.waitForSelector('#game-container canvas');
   await page.waitForTimeout(1000);
 
+  const canvas = page.locator('#game-container canvas');
+
   // 1. Whispering Woods exploration (Spring - Ch 1)
   console.log('Capturing whispering_woods.png...');
-  await page.screenshot({ path: path.join(OUT_DIR, 'whispering_woods.png') });
+  await page.evaluate(() => {
+    const fn = (window).__SWITCH_CHAPTER__;
+    if (fn) fn(1);
+  });
+  await page.waitForTimeout(600);
+  await canvas.screenshot({ path: path.join(OUT_DIR, 'whispering_woods.png') });
 
   // 2. The Ranger's Lodge Celebration (Chapter 20)
   console.log('Capturing ranger_lodge.png...');
@@ -45,7 +52,7 @@ async function main() {
     if (fn) fn(20);
   });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: path.join(OUT_DIR, 'ranger_lodge.png') });
+  await canvas.screenshot({ path: path.join(OUT_DIR, 'ranger_lodge.png') });
 
   // 3. The Pine Ridge (Winter - Chapter 16)
   console.log('Capturing pine_ridge.png...');
@@ -54,7 +61,7 @@ async function main() {
     if (fn) fn(16);
   });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: path.join(OUT_DIR, 'pine_ridge.png') });
+  await canvas.screenshot({ path: path.join(OUT_DIR, 'pine_ridge.png') });
 
   // 4. The Mossy Gearbox (Summer - Chapter 7)
   console.log('Capturing mossy_gearbox.png...');
@@ -63,9 +70,27 @@ async function main() {
     if (fn) fn(7);
   });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: path.join(OUT_DIR, 'mossy_gearbox.png') });
+  await canvas.screenshot({ path: path.join(OUT_DIR, 'mossy_gearbox.png') });
 
-  // 5. Open Chapter Trail Map Modal
+  // 5. Mossy Hollow (Autumn - Chapter 8)
+  console.log('Capturing mossy_hollow.png...');
+  await page.evaluate(() => {
+    const fn = (window).__SWITCH_CHAPTER__;
+    if (fn) fn(8);
+  });
+  await page.waitForTimeout(600);
+  await canvas.screenshot({ path: path.join(OUT_DIR, 'mossy_hollow.png') });
+
+  // 6. Nature Finds / Ranger Sketchbook (Chapter 12)
+  console.log('Capturing nature_sketchbook.png...');
+  await page.evaluate(() => {
+    const fn = (window).__SWITCH_CHAPTER__;
+    if (fn) fn(12);
+  });
+  await page.waitForTimeout(600);
+  await canvas.screenshot({ path: path.join(OUT_DIR, 'nature_sketchbook.png') });
+
+  // 7. Open Chapter Trail Map Modal
   console.log('Capturing trail_map.png...');
   await page.evaluate(() => {
     const fn = (window).__OPEN_CHAPTER_MAP__;
@@ -78,7 +103,7 @@ async function main() {
   await page.locator('#map-close-btn').click();
   await page.waitForTimeout(400);
 
-  // 6. Open In-Game Field Manual
+  // 8. Open In-Game Field Manual
   console.log('Capturing field_manual.png...');
   await page.evaluate(() => {
     const fn = (window).__OPEN_GUIDE__;
@@ -91,7 +116,7 @@ async function main() {
   await page.locator('#guide-done').click();
   await page.waitForTimeout(400);
 
-  // 7. Open Parent Dashboard
+  // 9. Open Parent Dashboard
   console.log('Capturing parent_dashboard.png...');
   await page.evaluate(() => {
     const fn = (window).__OPEN_PARENT_DASHBOARD__;
@@ -118,30 +143,18 @@ async function main() {
   await page.locator('#dash-done').click();
   await page.waitForTimeout(400);
 
-  // 8. Nature Sketchbook
-  console.log('Capturing nature_sketchbook.png...');
+  // 10. Bedtime Resting Screen
+  console.log('Capturing bedtime_resting.png...');
   await page.evaluate(() => {
     const game = (window).__GAME__;
     if (game) {
       game.scene.stop('WorldScene');
       game.scene.stop('SatchelUI');
-      game.scene.start('SketchbookScene');
-    }
-  });
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(OUT_DIR, 'nature_sketchbook.png') });
-
-  // 9. Bedtime Resting Screen
-  console.log('Capturing bedtime_resting.png...');
-  await page.evaluate(() => {
-    const game = (window).__GAME__;
-    if (game) {
-      game.scene.stop('SketchbookScene');
       game.scene.start('BedtimeScene');
     }
   });
   await page.waitForTimeout(800);
-  await page.screenshot({ path: path.join(OUT_DIR, 'bedtime_resting.png') });
+  await canvas.screenshot({ path: path.join(OUT_DIR, 'bedtime_resting.png') });
 
   console.log('All screenshots captured successfully in docs/images/!');
   await browser.close();

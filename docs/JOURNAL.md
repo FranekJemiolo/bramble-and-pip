@@ -397,6 +397,33 @@ All phases, architectural invariants, pedagogical guardrails, and technical spec
 * `npm run test:e2e` ✔ (10/10 passing across Desktop Chrome and Tablet emulators)
 * `npm run build` ✔ (Clean production build)
 
+---
+
+### [0012] 2026-10-19 — High-Fidelity Artwork Polish, Video Fidelity Alignment & Pip Cameo Medallion Integration
+
+**Context:** Aligned all in-game visuals, interactive environments, HUD controls, and scenes to the exact aesthetic demonstrated in the canonical reference artwork and Gemini video demonstration.
+
+**Decisions & Implementation:**
+* **Scene Composition & Aspect Ratio (`scripts/prepare-canonical-assets.mjs`):**
+  - Updated asset extraction to utilize `fit: 'fill'` for all world viewport backdrops (`whispering_woods_bg`, `mossy_gearbox_bg`, `mossy_hollow_bg`, `sketchbook_bg`, `pine_ridge_bg`, `ranger_lodge_bg`).
+  - Preserved the entire scene boundaries across the $320 \times 192$ viewport: wooden location signs ("The Whispering Woods", "The Mossy Gearbox", "Mossy Hollow", "The Pine Ridge", "The Ranger's Lodge", "Ranger Sketchbook") are 100% visible with zero horizontal clipping.
+  - Aligned interactive signpost touchzones $(52, 14, 90, 22)$ directly over the carved wooden sign in the backdrop art.
+* **Pip Cameo Medallion Integration (`src/scenes/SatchelUIScene.ts`):**
+  - Implemented dynamic circular Pip medallion that reflects gameplay context:
+    - Default / Chapters 1–5: Reveals native carved satchel artwork of happy Pip with zero edge clipping or overlay artifacts.
+    - Chapter 7 / Puzzle Overlay: Dynamically overlays `pip_cameo_thinking` (Pip with paw to chin) masked to circular radius $r = 23.5$px.
+    - Chapter 16–20 / Winter: Dynamically overlays `pip_cameo_winter` (Pip wearing acorn-motif knit winter beanie).
+  - Repositioned session curfew clock discreetly to top-right satchel trim $(306, 198)$, completely clearing the central "Ranger Satchel" carved title plate.
+  - Linked tactile touch bounce tween and chirrup kalimba audio to the circular medallion zone.
+* **Dialogue & HUD De-duplication (`src/scenes/WorldScene.ts`):**
+  - Suppressed duplicate procedural player and companion sprites over hand-crafted canonical scene backdrops.
+  - Dynamic dialogue rendered via an authentic parchment box with acorn badge, 2px border, and pointer notch.
+  - Interactive clickzones wired for all landmark hotspots: hedgehog in grass, stepping stones, windmill pump, beaver on weir, waterwheel, gear chest, glowing mushrooms, and cave entrance.
+* **Full Verification & Screenshot Re-capture:**
+  - Automated screenshot suite captured clean $320 \times 288$ pixel-perfect frames for all chapters: `whispering_woods.png`, `mossy_gearbox.png`, `mossy_hollow.png`, `nature_sketchbook.png`, `pine_ridge.png`, `ranger_lodge.png`, `trail_map.png`, `field_manual.png`, `parent_dashboard.png`, and `bedtime_resting.png`.
+  - Zero network egress verified, 114/114 unit tests passing, 10/10 Playwright E2E tests passing.
+
+
 
 
 

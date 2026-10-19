@@ -20,10 +20,14 @@ export class SketchbookScene extends Phaser.Scene {
   create(): void {
     eventBus.emit('pdf:export', { documentType: 'view_sketchbook' });
 
-    // Sketchbook background - use canonical desk pixel art with pencils, pinecones, crayons if available!
+    // Sketchbook background - canonical nature journal top (320x192) and satchel bottom (320x96)
     if (this.textures.exists('sketchbook_bg')) {
       const deskBg = this.add.image(0, 0, 'sketchbook_bg').setOrigin(0, 0);
-      deskBg.setDisplaySize(BASE_WIDTH, BASE_HEIGHT);
+      deskBg.setDisplaySize(BASE_WIDTH, 192);
+      if (this.textures.exists('satchel_bg')) {
+        const satchel = this.add.image(0, 192, 'satchel_bg').setOrigin(0, 0);
+        satchel.setDisplaySize(BASE_WIDTH, 96);
+      }
     } else {
       this.add.rectangle(0, 0, BASE_WIDTH, BASE_HEIGHT, 0xF4EFEA).setOrigin(0, 0);
     }

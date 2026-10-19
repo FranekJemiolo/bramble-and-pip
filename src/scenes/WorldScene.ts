@@ -192,20 +192,22 @@ export class WorldScene extends Phaser.Scene {
     this.flashlightGraphics = this.add.graphics();
     this.flashlightGraphics.setDepth(20);
 
-    // 5. Setup Character Sprites
+    // 5. Setup Character Sprites (hidden over canonical artwork to prevent duplicate ghost characters)
     this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_down_0');
     this.playerSprite.setDepth(10);
+    this.playerSprite.setVisible(false);
 
     this.pipSprite = this.add.sprite(this.playerBody.x - 16, this.playerBody.y, 'pip_FOLLOWING_0');
     this.pipSprite.setDepth(9);
+    this.pipSprite.setVisible(false);
 
     // 6. Setup Interactive Animals & Collectibles
     this.spawnWoodlandWildlife();
 
-    // 7. Setup Carved Wooden Location Banner (Top-Left)
+    // 7. Setup Carved Wooden Location Banner Clickzone (Top-Left)
     this.setupLocationSign();
 
-    // 8. Setup Dynamic Dialogue Banner (Bottom of World Viewport)
+    // 8. Setup Dynamic Dialogue Banner (Initially hidden to reveal canonical backdrop dialogue)
     this.setupDialogueBanner();
 
     // 9. Input & Controls Setup
@@ -217,8 +219,8 @@ export class WorldScene extends Phaser.Scene {
     // 11. Listen for Chapter & Action Events
     this.setupEventListeners();
 
-    // 12. Display Initial Chapter Welcome Dialogue
-    this.updateChapterDialogue();
+    // 12. Setup Chapter Interactive Hotspots
+    this.setupSceneHotspots();
 
     // 13. Expose state inspection for Playwright tests
     this.exposeStateInspection();
@@ -250,87 +252,154 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private setupLocationSign(): void {
-    const container = this.add.container(12, 12);
-    container.setDepth(30);
-
-    // Wooden signpost backing
-    const signBg = this.add.rectangle(0, 0, 110, 20, 0xB88A58).setOrigin(0, 0);
-    signBg.setStrokeStyle(1.5, 0x3B2F2F);
-    signBg.setInteractive({ cursor: 'pointer' });
-
-    const signText = this.add.text(55, 10, this.campaign.currentChapter.region, {
-      fontFamily: 'monospace',
-      fontSize: '7px',
-      color: '#3B2F2F',
-    }).setOrigin(0.5);
-
-    // Map pin icon on left
-    const pin = this.add.text(8, 10, '📍', { fontSize: '8px' }).setOrigin(0.5);
-
-    container.add([signBg, pin, signText]);
-
-    signBg.on('pointerdown', () => {
+    // Interactive hitzone positioned exactly over the hanging wooden sign in the artwork
+    const signZone = this.add.zone(52, 14, 90, 22).setInteractive({ cursor: 'pointer' });
+    signZone.on('pointerdown', () => {
       audioManager.playWoodblock();
       this.chapterMapModal.open();
     });
 
-    this.locationSignText = signText;
-  }
-
-  private setupDialogueBanner(): void {
-    // Sits at bottom of world viewport (y: 156..188, width: 290, height: 28)
-    const container = this.add.container(160, 172);
-    container.setDepth(40);
-
-    // Parchment speech scroll
-    const bg = this.add.rectangle(0, 0, 290, 28, 0xFAF6E8);
-    bg.setStrokeStyle(2, 0x3B2F2F);
-
-    // Speech pointer notch pointing towards characters
-    const notch = this.add.triangle(100, 14, 0, 0, 6, 6, 12, 0, 0xFAF6E8);
-    notch.setStrokeStyle(1.5, 0x3B2F2F);
-
-    // Pip / Acorn Avatar icon
-    const avatar = this.add.text(-130, 0, '🌰', { fontSize: '11px' }).setOrigin(0.5);
-
-    // Text content
-    const dialogueTxt = this.add.text(-114, 0, '', {
+    // Invisible text element for test inspection & screen readers
+    this.locationSignText = this.add.text(52, 14, this.campaign.currentChapter.region, {
       fontFamily: 'monospace',
       fontSize: '7px',
       color: '#3B2F2F',
-      wordWrap: { width: 245 },
+    }).setOrigin(0.5).setVisible(false);
+  }
+
+  private setupDialogueBanner(): void {
+    // Sits at bottom of world viewport (y: 158..186, width: 280, height: 26)
+    const container = this.add.container(160, 172);
+    container.setDepth(40);
+    container.setVisible(false); // Hidden by default so canonical background text shows cleanly
+
+    // Parchment speech scroll
+    const bg = this.add.rectangle(0, 0, 280, 26, 0xFDF8EB);
+    bg.setStrokeStyle(2, 0x432F21);
+
+    // Speech pointer notch pointing towards Pip
+    const notch = this.add.triangle(96, 13, 0, 0, 6, 6, 12, 0, 0xFDF8EB);
+    notch.setStrokeStyle(1.5, 0x432F21);
+
+    // Pip / Acorn Avatar icon
+    const avatar = this.add.text(-124, 0, '🌰', { fontSize: '10px' }).setOrigin(0.5);
+
+    // Text content
+    const dialogueTxt = this.add.text(-110, 0, '', {
+      fontFamily: 'monospace',
+      fontSize: '7px',
+      color: '#3B2F2F',
+      wordWrap: { width: 236 },
     }).setOrigin(0, 0.5);
 
     container.add([bg, notch, avatar, dialogueTxt]);
     this.dialogueContainer = container;
     this.dialogueText = dialogueTxt;
     this.dialogueAvatarText = avatar;
+
+    bg.setInteractive({ cursor: 'pointer' }).on('pointerdown', () => {
+      this.hideDialogue();
+    });
   }
 
-  private showDialogue(text: string, icon = '🌰'): void {
+  private dialogueDismissTimer?: Phaser.Time.TimerEvent;
+
+  private showDialogue(text: string, icon = '🌰', autoDismissSeconds = 6): void {
     this.dialogueAvatarText.setText(icon);
     this.dialogueText.setText(text);
     this.dialogueContainer.setVisible(true);
+
+    if (this.dialogueDismissTimer) {
+      this.dialogueDismissTimer.remove();
+    }
+    if (autoDismissSeconds > 0) {
+      this.dialogueDismissTimer = this.time.delayedCall(autoDismissSeconds * 1000, () => {
+        this.hideDialogue();
+      });
+    }
+  }
+
+  private hideDialogue(): void {
+    this.dialogueContainer.setVisible(false);
+    if (this.dialogueDismissTimer) {
+      this.dialogueDismissTimer.remove();
+      this.dialogueDismissTimer = undefined;
+    }
   }
 
   private updateChapterDialogue(): void {
-    const ch = this.campaign.currentChapter;
-    let text = `Pip: ${ch.objective} (${ch.sightWords.join(' ')})`;
+    // When chapter starts, let the canonical backdrop dialogue show cleanly.
+    this.hideDialogue();
+  }
 
-    // Tailored dialogue matching canonical mockups
-    if (ch.id === 20) {
-      text = 'Pip: Look at everyone we helped! We are honorary junior rangers now 🎖️❤️';
-    } else if (ch.id === 16) {
-      text = "Pip: Look at those footprints in the snow! Let's trace where they go 🐾❄️";
-    } else if (ch.id === 7) {
-      text = 'Pip: We can place these wooden gears on the pegs to turn the wheel! Match the sizes ⚙️';
-    } else if (ch.id === 8) {
-      text = "Pip: Whoa! Those mushrooms glow in the dark! Let's examine them 🍄🔍";
-    } else if (ch.id === 3) {
-      text = 'Pip: Count the lily pad dots to help our duckling friends cross the brook! 🦆🐾';
+  private setupSceneHotspots(): void {
+    const ch = this.campaign.currentChapter.id;
+
+    if (ch >= 1 && ch <= 5) {
+      // 1. Whispering Woods: Hedgehog in grass
+      const hedgehogZone = this.add.zone(160, 92, 32, 28).setInteractive({ cursor: 'pointer' });
+      hedgehogZone.on('pointerdown', () => {
+        audioManager.playPipChirrup();
+        audioManager.playKalimba(2);
+        this.showDialogue('Pip: Look! A hidden friend in the grass! Notice its round footprints in the soft soil 🐾 🦔', '🦔');
+      });
+
+      // 2. Whispering Woods: Stepping stones
+      const stonesZone = this.add.zone(50, 155, 45, 25).setInteractive({ cursor: 'pointer' });
+      stonesZone.on('pointerdown', () => {
+        audioManager.playWaterBubble();
+        this.showDialogue('Pip: Smooth stepping stones lead across the brook! Let\'s count them: 1, 2, 3... 🦆 🪨', '🦆');
+      });
+
+      // 3. Whispering Woods: Windmill
+      const windmillZone = this.add.zone(275, 130, 40, 50).setInteractive({ cursor: 'pointer' });
+      windmillZone.on('pointerdown', () => {
+        audioManager.playWoodblock();
+        this.showDialogue('Pip: The wooden windmill pumps water into Pebble Creek! Look at the wooden gears ⚙️ 🌾', '⚙️');
+      });
+    } else if (ch === 7) {
+      // The Mossy Gearbox: Beaver
+      const beaverZone = this.add.zone(215, 35, 30, 30).setInteractive({ cursor: 'pointer' });
+      beaverZone.on('pointerdown', () => {
+        audioManager.playWoodblock();
+        this.showDialogue('Pip: Hello Mr. Beaver! He is helping us repair the wooden weir 🪵 🦫', '🦫');
+      });
+
+      // The Mossy Gearbox: Pegs and gears puzzle launch
+      const gearZone = this.add.zone(180, 120, 70, 50).setInteractive({ cursor: 'pointer' });
+      gearZone.on('pointerdown', () => {
+        audioManager.playWoodblock();
+        this.scene.pause('WorldScene');
+        this.scene.launch('PuzzleOverlayScene', {
+          puzzleType: 'mossy_gearbox',
+          onComplete: () => {
+            this.showDialogue('Pip: The wooden gears mesh together smoothly! The waterwheel spins! ⚙️🌊', '⚙️');
+            this.campaign.completeCurrentChapter();
+          },
+        });
+      });
+    } else if (ch === 8) {
+      // Mossy Hollow: Bioluminescent mushrooms
+      const mushroomZone = this.add.zone(245, 65, 40, 40).setInteractive({ cursor: 'pointer' });
+      mushroomZone.on('pointerdown', () => {
+        audioManager.playKalimba(3);
+        this.showDialogue('Pip: Whoa! Those mushrooms glow in the dark! Bioluminescent fungi light up the hollow 🍄 🔍', '🍄');
+      });
+
+      // Mossy Hollow: Cave entrance
+      const caveZone = this.add.zone(30, 95, 40, 50).setInteractive({ cursor: 'pointer' });
+      caveZone.on('pointerdown', () => {
+        audioManager.playWoodblock();
+        this.showDialogue('Pip: A cool breeze flows from the cavern entrance! What secrets are hidden inside? 🦇 🗝️', '🦇');
+      });
+    } else if (ch === 12) {
+      // Ranger Sketchbook / Nature Finds
+      const bookZone = this.add.zone(160, 96, 300, 160).setInteractive({ cursor: 'pointer' });
+      bookZone.on('pointerdown', () => {
+        audioManager.playKalimba(1);
+        this.showDialogue('Pip: Let\'s add the little hedgehog to our book and identify its track! 🐾 📖', '📖');
+      });
     }
-
-    this.showDialogue(text, '🌰');
   }
 
   private switchChapter(chapterId: number): void {
@@ -343,13 +412,12 @@ export class WorldScene extends Phaser.Scene {
       this.backdropImage.setDisplaySize(320, 192);
     }
 
-    // Toggle overworld animal/item props based on region
-    const isForestOverworld = chapterId >= 1 && chapterId <= 5;
+    // Hide procedural animal/item props over canonical backdrops
     for (const c of this.collectibles) {
-      c.sprite.setVisible(isForestOverworld);
+      c.sprite.setVisible(false);
     }
     for (const a of this.animals) {
-      a.sprite.setVisible(isForestOverworld);
+      a.sprite.setVisible(false);
     }
 
     // Position characters in authentic canonical spots per chapter
@@ -370,8 +438,9 @@ export class WorldScene extends Phaser.Scene {
     // Update location sign
     this.locationSignText.setText(this.campaign.currentChapter.region);
 
-    // Update dialogue
+    // Update dialogue & hotspots
     this.updateChapterDialogue();
+    this.setupSceneHotspots();
 
     // Trigger acoustic kalimba chord
     audioManager.playKalimba(chapterId % 5);
@@ -405,6 +474,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private handleDPadMove(direction: 'up' | 'down' | 'left' | 'right'): void {
+    audioManager.playFootstep();
     const inputVec = {
       x: direction === 'left' ? -1 : direction === 'right' ? 1 : 0,
       y: direction === 'up' ? -1 : direction === 'down' ? 1 : 0,
@@ -438,16 +508,28 @@ export class WorldScene extends Phaser.Scene {
     }
 
     if (ch.id === 7) {
-      this.showDialogue('Pip: The wooden gears mesh together smoothly! The waterwheel spins! ⚙️🌊', '⚙️');
+      audioManager.playWoodblock();
       this.scene.pause('WorldScene');
-      this.scene.launch('MinigameGearbox');
+      this.scene.launch('PuzzleOverlayScene', {
+        puzzleType: 'mossy_gearbox',
+        onComplete: () => {
+          this.showDialogue('Pip: The wooden gears mesh together smoothly! The waterwheel spins! ⚙️🌊', '⚙️');
+          this.campaign.completeCurrentChapter();
+        },
+      });
       return;
     }
 
     if (ch.id === 3) {
-      this.showDialogue('Pip: 1, 2, 3, 4, 5! All the little ducklings safely crossed the pond! 🦆🌸', '🦆');
+      audioManager.playWaterBubble();
       this.scene.pause('WorldScene');
-      this.scene.launch('MinigameSubitizing');
+      this.scene.launch('PuzzleOverlayScene', {
+        puzzleType: 'stepping_stones',
+        onComplete: () => {
+          this.showDialogue('Pip: 1, 2, 3, 4, 5! All the little ducklings safely crossed the pond! 🦆🌸', '🦆');
+          this.campaign.completeCurrentChapter();
+        },
+      });
       return;
     }
 
@@ -457,7 +539,13 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
-    this.showDialogue(`Pip: What a lovely day on ${ch.region}! Let's find ${ch.sightWords[0]}! 🍃`, '🌰');
+    if (ch.id === 8) {
+      audioManager.playKalimba(3);
+      this.showDialogue('Pip: Whoa! Those mushrooms glow in the dark! Bioluminescent fungi light up the hollow 🍄 🔍', '🍄');
+      return;
+    }
+
+    this.showDialogue(`Pip: What a lovely day in ${ch.region}! Let's explore together! 🐾🍃`, '🌰');
     audioManager.playPipChirrup();
   }
 
@@ -623,15 +711,15 @@ export class WorldScene extends Phaser.Scene {
     this.flashlightGraphics.clear();
 
     const ch = this.campaign.currentChapter.id;
-    // Show flashlight beam in dark cave or winter chapters (Ch 8, 16)
-    if (ch === 8 || ch === 16) {
-      this.flashlightGraphics.fillStyle(0xFFEAA7, 0.22);
-      this.flashlightGraphics.beginPath();
-      this.flashlightGraphics.moveTo(this.playerBody.x, this.playerBody.y);
-      this.flashlightGraphics.lineTo(this.playerBody.x + 85, this.playerBody.y - 25);
-      this.flashlightGraphics.lineTo(this.playerBody.x + 95, this.playerBody.y + 25);
-      this.flashlightGraphics.closePath();
-      this.flashlightGraphics.fillPath();
+    // Subtle living warmth over illuminated ground focal points
+    if (ch >= 1 && ch <= 5) {
+      const breath = 0.06 + 0.03 * Math.sin(this.sessionElapsedSeconds * 2.5);
+      this.flashlightGraphics.fillStyle(0xDCE38A, breath);
+      this.flashlightGraphics.fillCircle(160, 92, 24); // Soft warm halo around hedgehog in grass
+    } else if (ch === 8) {
+      const breath = 0.08 + 0.04 * Math.sin(this.sessionElapsedSeconds * 3.0);
+      this.flashlightGraphics.fillStyle(0x789E3E, breath);
+      this.flashlightGraphics.fillCircle(245, 65, 20); // Soft bioluminescent glow around mushrooms
     }
   }
 
