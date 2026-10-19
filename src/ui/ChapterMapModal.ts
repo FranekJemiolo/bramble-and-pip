@@ -17,6 +17,10 @@ export class ChapterMapModal {
     this.onSelectChapter = onSelectChapter;
   }
 
+  get isOpen(): boolean {
+    return this.overlayEl !== null;
+  }
+
   open(): void {
     if (this.overlayEl) return;
 

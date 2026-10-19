@@ -445,13 +445,58 @@ All phases, architectural invariants, pedagogical guardrails, and technical spec
 * **Automated E2E Verification (`tests/e2e/steering-and-scaling.spec.ts`):**
   - Added comprehensive Playwright test suite validating display scaling dimensions, keyboard WASD/Arrow steering, continuous D-pad holding with walk frames, and tap-to-move pathfinding.
 
+---
+
+### [0014] 2026-10-19 — Expanded Multi-Screen World Map, Authentic Canonical Sprites & UI Click Isolation
+
+**Context:** Addressed user feedback requesting:
+1. Designing the full explorable world map instead of single-screen clamp.
+2. Redesigning Bramble and Pip sprites to faithfully match the canonical reference image details.
+3. Isolating text, dialogue banner, and sign clicks so they do not trigger pathfinding navigation or move the character.
+4. Enhancing visual clarity of the text and environment so everything is sharp and readable.
+
+**Decisions & Implementation:**
+* **Expanded $640 \times 384$ Explorable World Map (`src/scenes/WorldScene.ts`, `src/render/canonicalAssets.ts`):**
+  - Expanded world map from $320 \times 192$ ($20 \times 12$ tiles) to an expansive, interconnected $640 \times 384$ ($40 \times 24$ tiles of 16px) woodland environment seamlessly uniting all four regional quadrants:
+    - *Northwest:* Whispering Woods (sun-dappled glade, stream, stepping stones, windmill, hedgehog in grass).
+    - *Northeast:* The Mossy Gearbox (waterwheel, weir gate, stone canal, Mr. Beaver's lodge, cog puzzles).
+    - *Southwest:* Mossy Hollow & Ancient Oaks (hollow tree cavern archway, bioluminescent glowing mushrooms).
+    - *Southeast:* The Pine Ridge & Ranger Lodge (snowy ridge, animal tracks in snow, badger mound, celebration hearth).
+  - Wired `PixelPerfectCameraController` with integer floor quantization (`Math.floor`) and a $48 \times 36$px deadzone tracking Bramble and Pip across the $640 \times 384$ world.
+  - Dynamically updates the carved wooden location sign based on player quadrant: "THE WHISPERING WOODS", "THE MOSSY GEARBOX", "MOSSY HOLLOW", "THE PINE RIDGE", and "RANGER LODGE".
+* **Authentic Canonical Character Sprite Redesign (`src/render/sprites.ts`):**
+  - *Junior Ranger Bramble ($24 \times 32$ px):*
+    - Messy chestnut hair with boyish side fringe (colors 9 Warm Acorn Brown, 3 Weathered Oak, 2 Deep Bark Umber).
+    - Friendly anime-style eye with white catchlight (colors 0 Night Shadow, 14 Winter Snowdrift/Cream) and warm face shading (8 River Clay Tan).
+    - Khaki hiking shirt with white collar, brown shoulder straps, and explorer rucksack with rolled bedroll on the back.
+    - Metallic cylindrical flashlight held forward in hand (colors 0 metal rim, 13 Frost Glaze blue casing body, 7 glowing lens).
+    - Slate-blue shorts (colors 1 Forest Slate, 13 Frost Glaze), white hiking socks, and Weathered Oak boots with dark soles.
+    - 4-directional walk cycles: `right` profile, `left` (pixel-perfect horizontal flip), `down` (front-facing with dual straps and waist flashlight), and `up` (back-facing with bedroll rucksack).
+  - *Pip Companion ($24 \times 24$ px):*
+    - Chubby acorn body, cream belly, dark glossy eye with highlight, black snout.
+    - Green moss acorn cap with upright sprout stem (colors 4 Deep Moss, 5 Woodland Olive, 7 Sprout Yellow).
+    - Curled bushy squirrel tail with moss patches across 4 hopping walk frames (`FOLLOWING`), curious idle sparkle (`IDLE_CURIOUS`), magnifying glass inspection (`INSPECTING`), drooping yawn (`YAWNING`), and curled nest sleep (`SLEEPING`).
+* **Text & UI Click Isolation from Pathfinding Navigation (`src/scenes/WorldScene.ts`):**
+  - In `WorldScene.setupInputControls()`, `pointerdown` checks whether clicks hit interactive GameObjects or zones (`currentlyOver.length > 0`), the carved wooden sign in the top-left ($x \le 112, y \le 32$), or the dialogue banner area ($y \ge 150$).
+  - When dialogue is dismissed, a 150ms lock (`wasDialogueDismissedThisFrame`) prevents the dismissing click from bleeding into pathfinding.
+  - Clicking on dialogue, location signs, wildlife hotspots, or satchel controls NEVER moves Bramble or alters character coordinates.
+  - Viewport clicks now convert accurately to camera world coordinates (`pointer.worldX`, `pointer.worldY`) for navigation across the entire $640 \times 384$ map.
+* **Enhanced Visual Clarity & Typography:**
+  - Carved wooden sign: Un-hid `locationSignText` (`.setVisible(true)`) with bold 8px UI rounded font (`#2C1B10`), cream stroke (`#FAF6E8`), and dark drop shadow, rendering cleanly centered in the wooden hanging plaque with `scrollFactor(0)`.
+  - Cleaned all four quadrant wooden plaques in `world_full_map_bg` so dynamic lettering never clashes with static background text.
+  - Upgraded dialogue text to 8px bold UI rounded font with high contrast `#2C1B10` lettering on `#FDF8EB` parchment.
+* **Automated Verification:**
+  - Added Playwright tests verifying text/sign click isolation and multi-quadrant camera tracking.
+  - Full suite passed: 114/114 unit tests, 16/16 Playwright E2E tests.
+  - Re-captured full resolution documentation screenshots across all chapters.
+
 **Gate:**
-* `npm run typecheck` ✔ (Clean TypeScript 5.9 compile, 0 errors)
-* `npm run lint` ✔ (ESLint 9 clean, 0 warnings)
-* `npm run audit:egress` ✔ (Verified zero network egress)
+* `npm run typecheck` ✔ (Clean TypeScript compile)
+* `npm run lint` ✔ (ESLint clean)
+* `npm run audit:egress` ✔ (Zero network egress verified)
 * `npm run test:unit` ✔ (114/114 passing across 10 test suites)
-* `npm run test:e2e` ✔ (14/14 passing across desktop and tablet emulators)
-* `npm run build` ✔ (Clean dual-entry production build + PWA service worker with 25 precached entries)
+* `npm run test:e2e` ✔ (16/16 passing across desktop and tablet emulators)
+* `npm run build` ✔ (Clean production build + PWA service worker with 25 precached entries)
 
 
 

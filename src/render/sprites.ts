@@ -5,143 +5,403 @@ import { IndexedImage, TRANSPARENT } from './indexed';
  * All art is generated as IndexedImage buffers using exclusively the 16-color Whispering Woods palette.
  */
 
-// Helper to draw a character sprite on a 16x16 or 24x24 canvas
+const PALETTE_LEGEND: Readonly<Record<string, number>> = {
+  '0': 0, '1': 1, '2': 2, '3': 3,
+  '4': 4, '5': 5, '6': 6, '7': 7,
+  '8': 8, '9': 9, 'A': 10, 'B': 11,
+  'C': 12, 'D': 13, 'E': 14, 'F': 15,
+};
+
+const BRAMBLE_RIGHT_0 = [
+  '...........93...........',
+  '........99999993........',
+  '.......99999993333......',
+  '.......99999993333......',
+  '......22299999333999....',
+  '......22299999999993....',
+  '......22299999993999....',
+  '......22299EEEEE0E......',
+  '......2229988EE00E......',
+  '.......399988EE008......',
+  '........33388EEEEE......',
+  '...99999.3388EEE2E......',
+  '..2999992..EEEEEEE......',
+  '...9999988EEEE8.........',
+  '...9999922EEEE8.........',
+  '..3333332288EEEE...0.77.',
+  '..3999932288EEEE0DD0E77.',
+  '..3999932288EEEE0DD0E77.',
+  '..2999932288888.0DD0E77.',
+  '..3999932288888....0.77.',
+  '..3333338888888.........',
+  '.......1111111..........',
+  '.......1DDDDD1..........',
+  '.......1DDDDD1..........',
+  '.......1111111..........',
+  '........EE.EE...........',
+  '........EE.EE...........',
+  '........EE.EE...........',
+  '.......333.3333.........',
+  '.......333.3333.........',
+  '......033303333.........',
+  '........................'
+];
+
+const BRAMBLE_RIGHT_1 = [
+  '........................',
+  '...........93...........',
+  '........99999993........',
+  '.......99999993333......',
+  '.......99999993333......',
+  '......22299999333999....',
+  '......22299999999993....',
+  '......22299999993999....',
+  '......22299EEEEE0E......',
+  '......2229988EE00E......',
+  '.......399988EE008......',
+  '........33388EEEEE......',
+  '...99999.3388EEE2E......',
+  '..2999992..EEEEEEE......',
+  '...9999988EEEE8.........',
+  '...9999922EEEE8.........',
+  '..3333332288EEEE...0.77.',
+  '..3999932288EEEE0DD0E77.',
+  '..3999932288EEEE0DD0E77.',
+  '..2999932288888.0DD0E77.',
+  '..3999932288888....0.77.',
+  '..3333338888888.........',
+  '.......1111111..........',
+  '.......1DDDDD1..........',
+  '.......1DDDDD1..........',
+  '.......1111111..........',
+  '.........EEE............',
+  '.........EEE............',
+  '.........EEE............',
+  '.........3333...........',
+  '.........3333...........',
+  '........03333...........'
+];
+
+const BRAMBLE_RIGHT_2 = [
+  '...........93...........',
+  '........99999993........',
+  '.......99999993333......',
+  '.......99999993333......',
+  '......22299999333999....',
+  '......22299999999993....',
+  '......22299999993999....',
+  '......22299EEEEE0E......',
+  '......2229988EE00E......',
+  '.......399988EE008......',
+  '........33388EEEEE......',
+  '...99999.3388EEE2E......',
+  '..2999992..EEEEEEE......',
+  '...9999988EEEE8.........',
+  '...9999922EEEE8.........',
+  '..3333332288EEEE...0.77.',
+  '..3999932288EEEE0DD0E77.',
+  '..3999932288EEEE0DD0E77.',
+  '..2999932288888.0DD0E77.',
+  '..3999932288888....0.77.',
+  '..3333338888888.........',
+  '.......1111111..........',
+  '.......1DDDDD1..........',
+  '.......1DDDDD1..........',
+  '.......1111111..........',
+  '........EE.EE...........',
+  '........EE.EE...........',
+  '........EE.EE...........',
+  '......3333.333..........',
+  '......3333.333..........',
+  '......333303330.........',
+  '........................'
+];
+
+const BRAMBLE_DOWN_0 = [
+  '..........9933..........',
+  '........99999933........',
+  '.......9999999933.......',
+  '.......9999999933.......',
+  '......229999999922......',
+  '......229999999922......',
+  '......229999999922......',
+  '......22EEEEEEEE22......',
+  '......22E0E0EE0E22......',
+  '.......3E0E0EE083.......',
+  '........8EEEEEE8........',
+  '....33..88EEEE88..33....',
+  '...3333.88EEEE88.3333...',
+  '...3333.38EEEE83.3333...',
+  '...2222.38888883.2222...',
+  '....22..38888883..22....',
+  '........38888883........',
+  '........880DD088........',
+  '........880EE088........',
+  '........88888888........',
+  '.......1111111111.......',
+  '.......1DDDDDDDD1.......',
+  '.......1DDDDDDDD1.......',
+  '.......1111111111.......',
+  '........EE....EE........',
+  '........EE....EE........',
+  '........EE....EE........',
+  '.......3333..3333.......',
+  '.......3333..3333.......',
+  '......033330033330......',
+  '........................',
+  '........................'
+];
+
+const BRAMBLE_DOWN_1 = [
+  '........................',
+  '..........9933..........',
+  '........99999933........',
+  '.......9999999933.......',
+  '.......9999999933.......',
+  '......229999999922......',
+  '......229999999922......',
+  '......229999999922......',
+  '......22EEEEEEEE22......',
+  '......22E0E0EE0E22......',
+  '.......3E0E0EE083.......',
+  '........8EEEEEE8........',
+  '....33..88EEEE88..33....',
+  '...3333.88EEEE88.3333...',
+  '...3333.38EEEE83.3333...',
+  '...2222.38888883.2222...',
+  '....22..38888883..22....',
+  '........38888883........',
+  '........880DD088........',
+  '........880EE088........',
+  '........88888888........',
+  '.......1111111111.......',
+  '.......1DDDDDDDD1.......',
+  '.......1DDDDDDDD1.......',
+  '.......1111111111.......',
+  '..........EEEE..........',
+  '..........EEEE..........',
+  '..........EEEE..........',
+  '.........333333.........',
+  '.........333333.........',
+  '........03333330........',
+  '........................'
+];
+
+const BRAMBLE_UP_0 = [
+  '..........9933..........',
+  '........99999933........',
+  '.......9999999933.......',
+  '.......9999999933.......',
+  '......229999999922......',
+  '......229999999922......',
+  '......229999999922......',
+  '......222222222222......',
+  '......222222222222......',
+  '.......3333333333.......',
+  '........33333333........',
+  '....33..33333333..33....',
+  '...3333.33333333.3333...',
+  '...3333.33333333.3333...',
+  '...2222.33333333.2222...',
+  '....22..33333333..22....',
+  '........33333333........',
+  '........88888888........',
+  '........88888888........',
+  '........88888888........',
+  '.......1111111111.......',
+  '.......1DDDDDDDD1.......',
+  '.......1DDDDDDDD1.......',
+  '.......1111111111.......',
+  '........EE....EE........',
+  '........EE....EE........',
+  '........EE....EE........',
+  '.......3333..3333.......',
+  '.......3333..3333.......',
+  '......033330033330......',
+  '........................',
+  '........................'
+];
+
+const PIP_ROWS_0 = [
+  '........................',
+  '........................',
+  '.............7..........',
+  '....4......57.5.........',
+  '...445...555554.........',
+  '.944444..5555544........',
+  '.99444..55555554........',
+  '9999499.455555444.......',
+  '.299999..5555544........',
+  '.999999.944544449.......',
+  '.99999999944444EE9......',
+  '..299999988E4EEE0E......',
+  '..999999988EEEE00E0.....',
+  '....9.9998EEEEE00EE.....',
+  '.......9888EEEEEE28.....',
+  '.......9988E88EEEE......',
+  '.......9988888EEE8......',
+  '........988888E888......',
+  '.........98888888.......',
+  '.........33.9833........',
+  '.........33...33........',
+  '........................',
+  '........................',
+  '........................'
+];
+
+const PIP_ROWS_1 = [
+  '........................',
+  '.............7..........',
+  '....4......57.5.........',
+  '...445...555554.........',
+  '.944444..5555544........',
+  '.99444..55555554........',
+  '9999499.455555444.......',
+  '.299999..5555544........',
+  '.999999.944544449.......',
+  '.99999999944444EE9......',
+  '..299999988E4EEE0E......',
+  '..999999988EEEE00E0.....',
+  '....9.9998EEEEE00EE.....',
+  '.......9888EEEEEE28.....',
+  '.......9988E88EEEE......',
+  '.......9988888EEE8......',
+  '........988888E888......',
+  '.........93383388.......',
+  '..........33933.........',
+  '........................',
+  '........................',
+  '........................',
+  '........................',
+  '........................'
+];
+
+const PIP_ROWS_2 = [
+  '.............7..........',
+  '....4......57.5.........',
+  '...445...555554.........',
+  '.944444..5555544........',
+  '.99444..55555554........',
+  '9999499.455555444.......',
+  '.299999..5555544........',
+  '.999999.944544449.......',
+  '.99999999944444EE9......',
+  '..299999988E4EEE0E......',
+  '..999999988EEEE00E0.....',
+  '....9.9998EEEEE00EE.....',
+  '.......9888EEEEEE28.....',
+  '.......9988E88EEEE......',
+  '.......9988888EEE8......',
+  '........988888E888......',
+  '.........93383388.......',
+  '..........33933.........',
+  '........................',
+  '........................',
+  '........................',
+  '........................',
+  '........................',
+  '........................'
+];
+
 export class SpriteGenerator {
   /**
-   * Generates Junior Ranger sprite in 4 directions and walk phases.
+   * Generates Junior Ranger Bramble sprite in 4 directions and walk phases.
    * Directions: 'down' | 'up' | 'left' | 'right'
    * Frame: 0 (contact L), 1 (pass), 2 (contact R), 3 (pass)
+   * Size: 24x32 px on Whispering Woods 16-color palette.
    */
   static generateRangerFrame(direction: 'down' | 'up' | 'left' | 'right', frame: number): IndexedImage {
-    const img = IndexedImage.create(16, 20, TRANSPARENT);
-    const walkBob = frame % 2 === 1 ? 0 : 1; // 1px vertical bob during contact
+    const f = frame % 4;
 
-    // Head / Hat (Hat: 3 Weathered Oak, Brim: 8 River Clay Tan)
-    img.fillRect(5, 1 + walkBob, 6, 2, 3); // Hat crown
-    img.fillRect(4, 3 + walkBob, 8, 1, 8); // Hat brim
+    if (direction === 'right') {
+      const rows = f === 0 ? BRAMBLE_RIGHT_0 : f === 2 ? BRAMBLE_RIGHT_2 : BRAMBLE_RIGHT_1;
+      return IndexedImage.fromRows(rows, PALETTE_LEGEND);
+    }
 
-    // Face / Hair
+    if (direction === 'left') {
+      const rows = f === 0 ? BRAMBLE_RIGHT_0 : f === 2 ? BRAMBLE_RIGHT_2 : BRAMBLE_RIGHT_1;
+      const base = IndexedImage.fromRows(rows, PALETTE_LEGEND);
+      const flipped = IndexedImage.create(24, 32, TRANSPARENT);
+      flipped.blit(base, 0, 0, true);
+      return flipped;
+    }
+
     if (direction === 'down') {
-      img.fillRect(5, 4 + walkBob, 6, 4, 15); // Face cream
-      img.set(6, 5 + walkBob, 0); // Left eye
-      img.set(9, 5 + walkBob, 0); // Right eye
-      img.fillRect(5, 4 + walkBob, 1, 2, 2); // Left hair tuft
-      img.fillRect(10, 4 + walkBob, 1, 2, 2); // Right hair tuft
-    } else if (direction === 'up') {
-      img.fillRect(5, 4 + walkBob, 6, 4, 2); // Back hair umber
-    } else if (direction === 'left') {
-      img.fillRect(5, 4 + walkBob, 5, 4, 15);
-      img.set(6, 5 + walkBob, 0); // Eye
-      img.fillRect(8, 4 + walkBob, 2, 4, 2); // Back hair
-    } else {
-      img.fillRect(6, 4 + walkBob, 5, 4, 15);
-      img.set(9, 5 + walkBob, 0); // Eye
-      img.fillRect(6, 4 + walkBob, 2, 4, 2); // Back hair
+      const rows = f % 2 === 1 ? BRAMBLE_DOWN_1 : BRAMBLE_DOWN_0;
+      const img = IndexedImage.fromRows(rows, PALETTE_LEGEND);
+      if (f === 2) {
+        // Step offset
+        const flipped = IndexedImage.create(24, 32, TRANSPARENT);
+        flipped.blit(img, 0, 0, true);
+        return flipped;
+      }
+      return img;
     }
 
-    // Woolen Coat (5 Woodland Olive with 4 Deep Moss Green shading)
-    img.fillRect(4, 8 + walkBob, 8, 6, 5);
-    img.strokeRect(4, 8 + walkBob, 8, 6, 4);
-
-    // Satchel on hip (8 River Clay Tan, strap 9 Warm Acorn Brown)
-    if (direction === 'down' || direction === 'right') {
-      img.fillRect(10, 11 + walkBob, 3, 3, 8);
-      img.line(5, 8 + walkBob, 10, 11 + walkBob, 9);
-    } else if (direction === 'left') {
-      img.fillRect(3, 11 + walkBob, 3, 3, 8);
-      img.line(10, 8 + walkBob, 5, 11 + walkBob, 9);
+    // direction === 'up'
+    const rows = f % 2 === 1 ? BRAMBLE_DOWN_1 : BRAMBLE_UP_0;
+    const img = IndexedImage.fromRows(rows, PALETTE_LEGEND);
+    if (f === 2) {
+      const flipped = IndexedImage.create(24, 32, TRANSPARENT);
+      flipped.blit(img, 0, 0, true);
+      return flipped;
     }
-
-    // Boots (3 Weathered Oak)
-    const legOffset = frame === 0 ? -1 : frame === 2 ? 1 : 0;
-    img.fillRect(5 + legOffset, 14 + walkBob, 2, 4, 3);
-    img.fillRect(9 - legOffset, 14 + walkBob, 2, 4, 3);
-
     return img;
   }
 
   /**
    * Generates Pip companion sprite.
    * State: 'FOLLOWING' (walk hop) | 'IDLE_CURIOUS' | 'INSPECTING' | 'YAWNING' | 'SLEEPING'
+   * Size: 24x24 px on Whispering Woods 16-color palette.
    */
   static generatePipFrame(
     state: 'FOLLOWING' | 'IDLE_CURIOUS' | 'INSPECTING' | 'YAWNING' | 'SLEEPING',
     frame: number
   ): IndexedImage {
-    const img = IndexedImage.create(16, 16, TRANSPARENT);
-
     if (state === 'SLEEPING') {
-      // Curled up sleeping in a moss/leaf nest
-      img.disk(8, 9, 5, 9); // Acorn brown body
-      img.disk(8, 10, 3, 8); // River clay belly
-      img.ellipse(11, 8, 3, 2, 10); // Curled tail
-      // Sleeping shut eye slits
-      img.set(6, 9, 0);
-      img.set(7, 9, 0);
-      // Small "Z" indicator if frame % 2 === 1
+      const img = IndexedImage.fromRows(PIP_ROWS_0, PALETTE_LEGEND);
+      // Sleeping eyes shut (closed slit)
+      img.set(16, 12, 0);
+      img.set(17, 12, 0);
+      img.set(18, 12, 0);
       if (frame % 2 === 1) {
-        img.set(12, 3, 14);
-        img.set(13, 3, 14);
-        img.set(13, 4, 14);
-        img.set(12, 5, 14);
-        img.set(13, 5, 14);
+        // Zzz floating
+        img.set(19, 4, 14);
+        img.set(20, 4, 14);
+        img.set(20, 5, 14);
+        img.set(19, 6, 14);
+        img.set(20, 6, 14);
       }
       return img;
     }
 
     if (state === 'YAWNING') {
-      img.disk(8, 8, 5, 9); // Body
-      img.disk(8, 9, 3, 8); // Belly
-      // Oversized ears slumping
-      img.fillRect(4, 3, 2, 3, 9);
-      img.fillRect(10, 3, 2, 3, 9);
-      // Closed eyes + open mouth
-      img.set(6, 7, 0);
-      img.set(10, 7, 0);
-      img.fillRect(7, 8, 2, 2, 11); // Open yawn mouth (Rowan Berry Red)
+      const img = IndexedImage.fromRows(PIP_ROWS_0, PALETTE_LEGEND);
+      // Open yawn mouth (Rowan Berry Red)
+      img.fillRect(17, 13, 2, 2, 11);
       return img;
     }
 
-    // Hop offset for following
-    const hopY = state === 'FOLLOWING' && (frame === 1 || frame === 2) ? -2 : 0;
-
-    // Body (9 Warm Acorn Brown)
-    img.disk(8, 9 + hopY, 5, 9);
-
-    // Belly patch (8 River Clay Tan)
-    img.disk(8, 10 + hopY, 3, 8);
-
-    // Large ears (9 Acorn Brown, inner 7 Sprout Yellow)
-    img.fillRect(4, 2 + hopY, 3, 4, 9);
-    img.set(5, 3 + hopY, 7);
-    img.fillRect(9, 2 + hopY, 3, 4, 9);
-    img.set(10, 3 + hopY, 7);
-
-    // Curled squirrel tail (10 Autumn Amber)
-    img.fillRect(12, 5 + hopY, 3, 5, 10);
-    img.set(13, 4 + hopY, 10);
-
-    // Eyes
-    if (state === 'IDLE_CURIOUS') {
-      // Alert wide eyes with highlight
-      img.fillRect(6, 6 + hopY, 2, 2, 0);
-      img.set(6, 6 + hopY, 15);
-      img.fillRect(9, 6 + hopY, 2, 2, 0);
-      img.set(9, 6 + hopY, 15);
-    } else if (state === 'INSPECTING') {
-      // Looking down focused
-      img.fillRect(6, 7 + hopY, 2, 2, 0);
-      img.fillRect(9, 7 + hopY, 2, 2, 0);
-      // Small magnifying glass held in front paws (13 Frost Glaze + 3 Oak handle)
-      img.disk(5, 11 + hopY, 2, 13);
-      img.line(4, 13 + hopY, 2, 15 + hopY, 3);
-    } else {
-      // Normal friendly eyes
-      img.set(6, 7 + hopY, 0);
-      img.set(9, 7 + hopY, 0);
+    if (state === 'INSPECTING') {
+      const img = IndexedImage.fromRows(PIP_ROWS_0, PALETTE_LEGEND);
+      // Magnifying glass inspecting tracks (Frost glaze blue lens + Weathered oak handle)
+      img.disk(18, 18, 2, 13);
+      img.line(16, 20, 14, 22, 3);
+      return img;
     }
 
-    return img;
+    if (state === 'IDLE_CURIOUS') {
+      const img = IndexedImage.fromRows(PIP_ROWS_0, PALETTE_LEGEND);
+      // Bright alert eye with shine
+      img.set(16, 11, 14);
+      img.set(17, 12, 0);
+      return img;
+    }
+
+    // FOLLOWING (walk hop)
+    const f = frame % 4;
+    const rows = f === 0 ? PIP_ROWS_0 : f === 2 ? PIP_ROWS_2 : PIP_ROWS_1;
+    return IndexedImage.fromRows(rows, PALETTE_LEGEND);
   }
 
   /**

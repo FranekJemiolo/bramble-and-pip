@@ -112,6 +112,14 @@ async function main() {
     );
   }
 
+  // 3b. Full Interconnected World Map (640x384 px - 40x24 tiles)
+  assetsRecord.world_full_map_bg = await processAsset(
+    path.resolve('scratch/clean_full_map.png'),
+    undefined,
+    { width: 640, height: 384, fit: 'fill' },
+    'world_full_map_bg'
+  );
+
   // 4. Woodland Creature & Prop Sprites
   assetsRecord.beaver_sprite = await processAsset(
     path.join(BRAIN_DIR, 'media_1792358602848.jpg'),

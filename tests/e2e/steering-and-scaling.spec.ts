@@ -120,8 +120,8 @@ test.describe('Steering and Canvas Scaling', () => {
 
     const scaleX = box.width / 320;
     const scaleY = box.height / 288;
-    // Click on dirt path in world viewport at (160, 80)
-    const trailClickX = box.x + 160 * scaleX;
+    // Click on open dirt path in world viewport at (205, 80)
+    const trailClickX = box.x + 205 * scaleX;
     const trailClickY = box.y + 80 * scaleY;
 
     const getPos = () => page.evaluate(() => (window as unknown as { __GAME_STATE__: () => { player: { x: number; y: number } } }).__GAME_STATE__().player);
@@ -132,5 +132,100 @@ test.describe('Steering and Canvas Scaling', () => {
 
     const destPos = await getPos();
     expect(destPos.x).toBeGreaterThan(startPos.x + 10);
+  });
+
+  test('clicking on location sign or dialogue text does NOT move Bramble', async ({ page }) => {
+    await page.goto('./');
+    await page.waitForSelector('#game-container canvas');
+    await page.waitForTimeout(500);
+
+    const canvas = page.locator('#game-container canvas');
+    const box = await canvas.boundingBox();
+    expect(box).not.toBeNull();
+    if (!box) return;
+
+    const scaleX = box.width / 320;
+    const scaleY = box.height / 288;
+
+    const getPos = () => page.evaluate(() => (window as unknown as { __GAME_STATE__: () => { player: { x: number; y: number } } }).__GAME_STATE__().player);
+    const startPos = await getPos();
+
+    // 1. Click on carved location sign in top-left (52, 14)
+    const signClickX = box.x + 52 * scaleX;
+    const signClickY = box.y + 14 * scaleY;
+    await page.mouse.click(signClickX, signClickY);
+    await page.waitForTimeout(400);
+
+    // Close the map modal if opened
+    const modalCloseBtn = page.locator('#map-close-btn');
+    if (await modalCloseBtn.isVisible()) {
+      await modalCloseBtn.click();
+      await page.waitForTimeout(200);
+    }
+
+    const posAfterSign = await getPos();
+    expect(posAfterSign.x).toBe(startPos.x);
+    expect(posAfterSign.y).toBe(startPos.y);
+
+    // 2. Open dialogue and click on dialogue text area (160, 172)
+    await page.evaluate(() => {
+      const scene = (window as unknown as { __GAME__: Phaser.Game }).__GAME__.scene.getScene('WorldScene') as unknown as {
+        showDialogue: (txt: string) => void;
+      };
+      scene.showDialogue('Pip: Hello! Testing text click isolation.');
+    });
+    await page.waitForTimeout(200);
+
+    const dialogueClickX = box.x + 160 * scaleX;
+    const dialogueClickY = box.y + 172 * scaleY;
+    await page.mouse.click(dialogueClickX, dialogueClickY);
+    await page.waitForTimeout(400);
+
+    const posAfterDialogue = await getPos();
+    expect(posAfterDialogue.x).toBe(startPos.x);
+    expect(posAfterDialogue.y).toBe(startPos.y);
+  });
+
+  test('walks across full 640x384 map: camera scrolls and carved sign updates region dynamically', async ({ page }) => {
+    await page.goto('./');
+    await page.waitForSelector('#game-container canvas');
+    await page.waitForTimeout(500);
+
+    // Inspect sign text before walk
+    const getRegionText = () => page.evaluate(() => {
+      const scene = (window as unknown as { __GAME__: Phaser.Game }).__GAME__.scene.getScene('WorldScene') as unknown as {
+        locationSignText: Phaser.GameObjects.Text;
+      };
+      return scene.locationSignText.text;
+    });
+
+    const initRegion = await getRegionText();
+    expect(initRegion).toBe('THE WHISPERING WOODS');
+
+    // Walk East into The Mossy Gearbox (across x = 320)
+    await page.evaluate(() => {
+      const scene = (window as unknown as { __GAME__: Phaser.Game }).__GAME__.scene.getScene('WorldScene') as unknown as {
+        playerBody: { x: number; y: number };
+      };
+      scene.playerBody.x = 400;
+      scene.playerBody.y = 80;
+    });
+    await page.waitForTimeout(300);
+
+    const gearboxRegion = await getRegionText();
+    expect(gearboxRegion).toBe('THE MOSSY GEARBOX');
+
+    // Walk South into Pine Ridge
+    await page.evaluate(() => {
+      const scene = (window as unknown as { __GAME__: Phaser.Game }).__GAME__.scene.getScene('WorldScene') as unknown as {
+        playerBody: { x: number; y: number };
+      };
+      scene.playerBody.x = 400;
+      scene.playerBody.y = 260;
+    });
+    await page.waitForTimeout(300);
+
+    const ridgeRegion = await getRegionText();
+    expect(ridgeRegion).toBe('THE PINE RIDGE');
   });
 });

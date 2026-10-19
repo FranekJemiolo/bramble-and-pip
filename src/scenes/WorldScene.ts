@@ -100,13 +100,15 @@ export class WorldScene extends Phaser.Scene {
   private dialogueContainer!: Phaser.GameObjects.Container;
   private dialogueText!: Phaser.GameObjects.Text;
   private dialogueAvatarText!: Phaser.GameObjects.Text;
+  private wasDialogueDismissedThisFrame = false;
 
   // Flashlight light cone
   private flashlightGraphics?: Phaser.GameObjects.Graphics;
+  private hotspotZones: Phaser.GameObjects.Zone[] = [];
 
-  // Map dimensions
-  private readonly mapTilesX = 20;
-  private readonly mapTilesY = 12;
+  // Map dimensions (640x384 px - 40x24 tiles of 16px)
+  private readonly mapTilesX = 40;
+  private readonly mapTilesY = 24;
 
   constructor() {
     super('WorldScene');
@@ -160,13 +162,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create(): void {
-    // 1. Initialize Subsystems
+    // 1. Initialize Subsystems & Viewport
+    this.cameras.main.setViewport(0, 0, BASE_WIDTH, 192);
     this.movementController = new KinematicMovementController();
     this.cameraController = new PixelPerfectCameraController(
       BASE_WIDTH,
       192,
-      BASE_WIDTH,
-      192,
+      this.mapTilesX * 16,
+      this.mapTilesY * 16,
       this.playerBody.x,
       this.playerBody.y
     );
@@ -175,21 +178,25 @@ export class WorldScene extends Phaser.Scene {
       this.switchChapter(chapterId);
     });
 
-    // 2. Setup Walkable Collision Grid (20x12 tiles)
+    // 2. Setup Walkable Collision Grid (40x24 tiles)
     const cells = new Uint8Array(this.mapTilesX * this.mapTilesY);
     for (let y = 0; y < this.mapTilesY; y++) {
       for (let x = 0; x < this.mapTilesX; x++) {
         const isBorder = x === 0 || x === this.mapTilesX - 1 || y === 0 || y === this.mapTilesY - 1;
-        cells[y * this.mapTilesX + x] = isBorder ? 1 : 0;
+        // Water / millpond in NE: x: 23..27, y: 2..8, except bridge at y: 5
+        const isWater = (x >= 23 && x <= 27 && y >= 2 && y <= 8 && y !== 5);
+        cells[y * this.mapTilesX + x] = (isBorder || isWater) ? 1 : 0;
       }
     }
     this.collisionGrid = new CollisionGrid(this.mapTilesX, this.mapTilesY, cells);
     this.pathfinder = new TilePathfindingManager(this.collisionGrid);
 
-    // 3. Render Canonical 16-Color Scene Backdrop (320x192)
-    const bgKey = this.getBackdropKeyForChapter(this.campaign.currentChapter.id);
-    this.backdropImage = this.add.image(0, 0, bgKey).setOrigin(0, 0);
-    this.backdropImage.setDisplaySize(320, 192);
+    // 3. Render Full Explorable World Map Backdrop (640x384)
+    const mapKey = this.textures.exists('world_full_map_bg')
+      ? 'world_full_map_bg'
+      : this.getBackdropKeyForChapter(this.campaign.currentChapter.id);
+    this.backdropImage = this.add.image(0, 0, mapKey).setOrigin(0, 0);
+    this.backdropImage.setDisplaySize(this.mapTilesX * 16, this.mapTilesY * 16);
 
     // 4. Setup Flashlight Lighting Cone
     this.flashlightGraphics = this.add.graphics();
@@ -255,26 +262,37 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private setupLocationSign(): void {
-    // Interactive hitzone positioned exactly over the hanging wooden sign in the artwork
-    const signZone = this.add.zone(52, 14, 90, 22).setInteractive({ cursor: 'pointer' });
-    signZone.on('pointerdown', () => {
+    // Interactive hitzone positioned exactly over the hanging wooden sign in the top-left
+    const signZone = this.add.zone(56, 14, 96, 22)
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(34)
+      .setInteractive({ cursor: 'pointer' });
+
+    signZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      pointer.event?.stopPropagation?.();
       audioManager.playWoodblock();
       this.chapterMapModal.open();
     });
 
-    // Invisible text element for test inspection & screen readers
-    this.locationSignText = this.add.text(52, 14, this.campaign.currentChapter.region, {
-      fontFamily: 'monospace',
-      fontSize: '7px',
-      color: '#3B2F2F',
-    }).setOrigin(0.5).setVisible(false);
+    // Crisp high-contrast carved lettering for the location sign
+    this.locationSignText = this.add.text(56, 14, 'THE WHISPERING WOODS', {
+      fontFamily: 'ui-rounded, "Avenir Next", "Trebuchet MS", sans-serif',
+      fontSize: '8px',
+      fontStyle: 'bold',
+      color: '#2C1B10',
+      stroke: '#FAF6E8',
+      strokeThickness: 1,
+      shadow: { offsetX: 0, offsetY: 1, color: '#1A1A24', blur: 0, fill: true },
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(35).setVisible(true);
   }
 
   private setupDialogueBanner(): void {
-    // Sits at bottom of world viewport (y: 158..186, width: 280, height: 26)
+    // Sits pinned at bottom of world viewport (y: 172, width: 280, height: 26)
     const container = this.add.container(160, 172);
-    container.setDepth(40);
-    container.setVisible(false); // Hidden by default so canonical background text shows cleanly
+    container.setDepth(45);
+    container.setScrollFactor(0);
+    container.setVisible(false);
 
     // Parchment speech scroll
     const bg = this.add.rectangle(0, 0, 280, 26, 0xFDF8EB);
@@ -285,14 +303,16 @@ export class WorldScene extends Phaser.Scene {
     notch.setStrokeStyle(1.5, 0x432F21);
 
     // Pip / Acorn Avatar icon
-    const avatar = this.add.text(-124, 0, '🌰', { fontSize: '10px' }).setOrigin(0.5);
+    const avatar = this.add.text(-124, 0, '🌰', { fontSize: '11px' }).setOrigin(0.5);
 
-    // Text content
+    // Crisp, readable dialogue text
     const dialogueTxt = this.add.text(-110, 0, '', {
-      fontFamily: 'monospace',
-      fontSize: '7px',
-      color: '#3B2F2F',
+      fontFamily: 'ui-rounded, "Avenir Next", "Trebuchet MS", sans-serif',
+      fontSize: '8px',
+      fontStyle: '600',
+      color: '#2C1B10',
       wordWrap: { width: 236 },
+      lineSpacing: 1,
     }).setOrigin(0, 0.5);
 
     container.add([bg, notch, avatar, dialogueTxt]);
@@ -300,9 +320,18 @@ export class WorldScene extends Phaser.Scene {
     this.dialogueText = dialogueTxt;
     this.dialogueAvatarText = avatar;
 
-    bg.setInteractive({ cursor: 'pointer' }).on('pointerdown', () => {
+    const dismissHandler = (pointer: Phaser.Input.Pointer) => {
+      pointer.event?.stopPropagation?.();
+      this.wasDialogueDismissedThisFrame = true;
+      this.time.delayedCall(150, () => {
+        this.wasDialogueDismissedThisFrame = false;
+      });
       this.hideDialogue();
-    });
+    };
+
+    bg.setInteractive({ cursor: 'pointer' }).on('pointerdown', dismissHandler);
+    dialogueTxt.setInteractive({ cursor: 'pointer' }).on('pointerdown', dismissHandler);
+    avatar.setInteractive({ cursor: 'pointer' }).on('pointerdown', dismissHandler);
   }
 
   private dialogueDismissTimer?: Phaser.Time.TimerEvent;
@@ -336,112 +365,113 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private setupSceneHotspots(): void {
-    const ch = this.campaign.currentChapter.id;
-
-    if (ch >= 1 && ch <= 5) {
-      // 1. Whispering Woods: Hedgehog in grass
-      const hedgehogZone = this.add.zone(160, 92, 32, 28).setInteractive({ cursor: 'pointer' });
-      hedgehogZone.on('pointerdown', () => {
-        audioManager.playPipChirrup();
-        audioManager.playKalimba(2);
-        this.showDialogue('Pip: Look! A hidden friend in the grass! Notice its round footprints in the soft soil 🐾 🦔', '🦔');
-      });
-
-      // 2. Whispering Woods: Stepping stones
-      const stonesZone = this.add.zone(50, 155, 45, 25).setInteractive({ cursor: 'pointer' });
-      stonesZone.on('pointerdown', () => {
-        audioManager.playWaterBubble();
-        this.showDialogue('Pip: Smooth stepping stones lead across the brook! Let\'s count them: 1, 2, 3... 🦆 🪨', '🦆');
-      });
-
-      // 3. Whispering Woods: Windmill
-      const windmillZone = this.add.zone(275, 130, 40, 50).setInteractive({ cursor: 'pointer' });
-      windmillZone.on('pointerdown', () => {
-        audioManager.playWoodblock();
-        this.showDialogue('Pip: The wooden windmill pumps water into Pebble Creek! Look at the wooden gears ⚙️ 🌾', '⚙️');
-      });
-    } else if (ch === 7) {
-      // The Mossy Gearbox: Beaver
-      const beaverZone = this.add.zone(215, 35, 30, 30).setInteractive({ cursor: 'pointer' });
-      beaverZone.on('pointerdown', () => {
-        audioManager.playWoodblock();
-        this.showDialogue('Pip: Hello Mr. Beaver! He is helping us repair the wooden weir 🪵 🦫', '🦫');
-      });
-
-      // The Mossy Gearbox: Pegs and gears puzzle launch
-      const gearZone = this.add.zone(180, 120, 70, 50).setInteractive({ cursor: 'pointer' });
-      gearZone.on('pointerdown', () => {
-        audioManager.playWoodblock();
-        this.scene.pause('WorldScene');
-        this.scene.launch('PuzzleOverlayScene', {
-          puzzleType: 'mossy_gearbox',
-          onComplete: () => {
-            this.showDialogue('Pip: The wooden gears mesh together smoothly! The waterwheel spins! ⚙️🌊', '⚙️');
-            this.campaign.completeCurrentChapter();
-          },
-        });
-      });
-    } else if (ch === 8) {
-      // Mossy Hollow: Bioluminescent mushrooms
-      const mushroomZone = this.add.zone(245, 65, 40, 40).setInteractive({ cursor: 'pointer' });
-      mushroomZone.on('pointerdown', () => {
-        audioManager.playKalimba(3);
-        this.showDialogue('Pip: Whoa! Those mushrooms glow in the dark! Bioluminescent fungi light up the hollow 🍄 🔍', '🍄');
-      });
-
-      // Mossy Hollow: Cave entrance
-      const caveZone = this.add.zone(30, 95, 40, 50).setInteractive({ cursor: 'pointer' });
-      caveZone.on('pointerdown', () => {
-        audioManager.playWoodblock();
-        this.showDialogue('Pip: A cool breeze flows from the cavern entrance! What secrets are hidden inside? 🦇 🗝️', '🦇');
-      });
-    } else if (ch === 12) {
-      // Ranger Sketchbook / Nature Finds
-      const bookZone = this.add.zone(160, 96, 300, 160).setInteractive({ cursor: 'pointer' });
-      bookZone.on('pointerdown', () => {
-        audioManager.playKalimba(1);
-        this.showDialogue('Pip: Let\'s add the little hedgehog to our book and identify its track! 🐾 📖', '📖');
-      });
+    for (const z of this.hotspotZones) {
+      z.destroy();
     }
+    this.hotspotZones = [];
+
+    const addHotspot = (x: number, y: number, w: number, h: number, onDown: () => void) => {
+      const z = this.add.zone(x, y, w, h).setInteractive({ cursor: 'pointer' });
+      z.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        pointer.event?.stopPropagation?.();
+        onDown();
+      });
+      this.hotspotZones.push(z);
+      return z;
+    };
+
+    // 1. Whispering Woods (NW: 0..320, 0..192)
+    addHotspot(160, 92, 36, 30, () => {
+      audioManager.playPipChirrup();
+      audioManager.playKalimba(2);
+      this.showDialogue('Pip: Look! A hidden friend in the grass! Notice its round footprints in the soft soil 🐾 🦔', '🦔');
+    });
+
+    addHotspot(50, 155, 45, 25, () => {
+      audioManager.playWaterBubble();
+      this.showDialogue('Pip: Smooth stepping stones lead across the brook! Let\'s count them: 1, 2, 3... 🦆 🪨', '🦆');
+    });
+
+    addHotspot(275, 130, 40, 50, () => {
+      audioManager.playWoodblock();
+      this.showDialogue('Pip: The wooden windmill pumps water into Pebble Creek! Look at the wooden gears ⚙️ 🌾', '⚙️');
+    });
+
+    // 2. The Mossy Gearbox & Waterwheel (NE: 320..640, 0..192)
+    addHotspot(535, 50, 40, 40, () => {
+      audioManager.playWoodblock();
+      this.showDialogue('Pip: Hello Mr. Beaver! He is helping us repair the wooden weir 🪵 🦫', '🦫');
+    });
+
+    addHotspot(480, 80, 70, 60, () => {
+      audioManager.playWoodblock();
+      this.scene.pause('WorldScene');
+      this.scene.launch('PuzzleOverlayScene', {
+        puzzleType: 'mossy_gearbox',
+        onComplete: () => {
+          this.showDialogue('Pip: The wooden gears mesh together smoothly! The waterwheel spins! ⚙️🌊', '⚙️');
+          this.campaign.completeCurrentChapter();
+        },
+      });
+    });
+
+    // 3. Mossy Hollow (SW: 0..320, 192..384)
+    addHotspot(110, 275, 44, 44, () => {
+      audioManager.playKalimba(3);
+      this.showDialogue('Pip: Whoa! Those mushrooms glow in the dark! Bioluminescent fungi light up the hollow 🍄 🔍', '🍄');
+    });
+
+    addHotspot(40, 290, 45, 50, () => {
+      audioManager.playWoodblock();
+      this.showDialogue('Pip: A cool breeze flows from the cavern entrance! What secrets are hidden inside? 🦇 🗝️', '🦇');
+    });
+
+    // 4. Pine Ridge & Ranger Lodge (SE: 320..640, 192..384)
+    addHotspot(430, 280, 45, 45, () => {
+      audioManager.playPipChirrup();
+      this.showDialogue('Pip: Big back paws leap ahead of small front paws! The trail leads to the badger mound 🐾❄️', '🐇');
+    });
+
+    addHotspot(540, 270, 60, 60, () => {
+      audioManager.playKalimba(4);
+      audioManager.playPipChirrup();
+      this.showDialogue('Pip: Everyone is safe and warm by the fireplace! We earned the Junior Ranger Honor! 🐻🐿️🦊', '🎖️');
+    });
   }
 
   private switchChapter(chapterId: number): void {
     this.campaign.startChapter(chapterId);
 
-    // Update backdrop image
-    const bgKey = this.getBackdropKeyForChapter(chapterId);
-    if (this.textures.exists(bgKey)) {
-      this.backdropImage.setTexture(bgKey);
-      this.backdropImage.setDisplaySize(320, 192);
+    // Position characters in authentic canonical spots per quadrant / chapter
+    if (chapterId >= 1 && chapterId <= 5) {
+      // Whispering Woods (NW)
+      this.playerBody.x = 105;
+      this.playerBody.y = 80;
+    } else if (chapterId >= 6 && chapterId <= 7) {
+      // The Mossy Gearbox (NE)
+      this.playerBody.x = 480;
+      this.playerBody.y = 96;
+    } else if (chapterId >= 8 && chapterId <= 15) {
+      // Mossy Hollow (SW)
+      this.playerBody.x = 160;
+      this.playerBody.y = 288;
+    } else if (chapterId >= 16 && chapterId <= 19) {
+      // The Pine Ridge (SE)
+      this.playerBody.x = 480;
+      this.playerBody.y = 288;
+    } else if (chapterId === 20) {
+      // Ranger Lodge celebration (SE)
+      this.playerBody.x = 520;
+      this.playerBody.y = 270;
     }
 
-    // Hide procedural animal/item props over canonical backdrops
-    for (const c of this.collectibles) {
-      c.sprite.setVisible(false);
-    }
-    for (const a of this.animals) {
-      a.sprite.setVisible(false);
-    }
+    this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
+    this.pipSprite.setPosition(this.playerBody.x - 16, this.playerBody.y);
+    this.cameraController.snapTo(this.playerBody.x, this.playerBody.y);
+    const scroll = this.cameraController.scroll();
+    this.cameras.main.setScroll(scroll.x, scroll.y);
 
-    // Position characters in authentic canonical spots per chapter
-    if (chapterId === 20) {
-      // Ranger Lodge celebration
-      this.playerBody.x = 126;
-      this.playerBody.y = 126;
-      this.playerSprite.setPosition(126, 126);
-      this.pipSprite.setPosition(146, 134);
-    } else if (chapterId === 16) {
-      // The Pine Ridge winter path
-      this.playerBody.x = 122;
-      this.playerBody.y = 124;
-      this.playerSprite.setPosition(122, 124);
-      this.pipSprite.setPosition(186, 130);
-    }
-
-    // Update location sign
-    this.locationSignText.setText(this.campaign.currentChapter.region);
-
-    // Update dialogue & hotspots
+    this.updateCurrentRegionName();
     this.updateChapterDialogue();
     this.setupSceneHotspots();
 
@@ -603,9 +633,27 @@ export class WorldScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.Key;
     };
 
-    // Tap-to-move pathfinding
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.y >= 192) return; // Satchel bar touches handled by UI
+    // Tap-to-move pathfinding with UI click isolation
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, currentlyOver?: Phaser.GameObjects.GameObject[]) => {
+      // 1. Ignore Satchel area touches (handled by SatchelUIScene)
+      if (pointer.y >= 192) return;
+
+      // 2. Ignore if clicking on interactive GameObjects or zones
+      if (currentlyOver && currentlyOver.length > 0) return;
+
+      // 3. Ignore if clicking on the carved location sign in top-left
+      if (pointer.x <= 112 && pointer.y <= 32) return;
+
+      // 4. Ignore if dialogue banner is visible, was just dismissed, or pointer is in dialogue bounds
+      if (this.wasDialogueDismissedThisFrame || (this.dialogueContainer.visible && pointer.y >= 150)) return;
+
+      // 5. Ignore if Chapter Map modal is open
+      if (this.chapterMapModal?.isOpen) return;
+
+      // 6. Convert screen coordinates to world coordinates taking camera scroll into account
+      const worldX = pointer.worldX;
+      const worldY = pointer.worldY;
+
       const isMouse = (pointer.event as PointerEvent | undefined)?.pointerType === 'mouse' || !pointer.wasTouch;
       const accepted = isMouse || this.inputManager.pointerDown({
         id: pointer.id,
@@ -620,7 +668,7 @@ export class WorldScene extends Phaser.Scene {
       if (accepted) {
         const waypoints = this.pathfinder.navigate(
           { x: this.playerBody.x, y: this.playerBody.y },
-          { x: pointer.x, y: pointer.y }
+          { x: worldX, y: worldY }
         );
         if (waypoints && waypoints.length > 0) {
           this.currentWaypoints = waypoints;
@@ -734,7 +782,9 @@ export class WorldScene extends Phaser.Scene {
 
     // Update Pip Companion and Camera
     this.pipCompanion.update(isMoving, this.sessionElapsedSeconds, this.isBedtime, delta / 1000);
-    this.cameraController.update(this.playerBody.x, this.playerBody.y, delta / 1000);
+    const scroll = this.cameraController.update(this.playerBody.x, this.playerBody.y, delta / 1000);
+    this.cameras.main.setScroll(scroll.x, scroll.y);
+    this.updateCurrentRegionName();
 
     // 3. Update Flashlight Lighting Cone pointing in facing direction
     this.updateFlashlight();
@@ -802,6 +852,24 @@ export class WorldScene extends Phaser.Scene {
       const breath = 0.10 + 0.05 * Math.sin(this.sessionElapsedSeconds * 3.0);
       this.flashlightGraphics.fillStyle(0x789E3E, breath);
       this.flashlightGraphics.fillCircle(245, 65, 20); // Soft bioluminescent glow around mushrooms
+    }
+  }
+
+  private updateCurrentRegionName(): void {
+    const px = this.playerBody.x;
+    const py = this.playerBody.y;
+    let region = 'THE WHISPERING WOODS';
+    if (px < 320 && py < 192) {
+      region = 'THE WHISPERING WOODS';
+    } else if (px >= 320 && py < 192) {
+      region = 'THE MOSSY GEARBOX';
+    } else if (px < 320 && py >= 192) {
+      region = 'MOSSY HOLLOW';
+    } else {
+      region = (px >= 480 && py >= 240) ? 'RANGER LODGE' : 'THE PINE RIDGE';
+    }
+    if (this.locationSignText && this.locationSignText.text !== region) {
+      this.locationSignText.setText(region);
     }
   }
 
