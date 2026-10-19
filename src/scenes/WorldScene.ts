@@ -129,6 +129,8 @@ export class WorldScene extends Phaser.Scene {
 
   // Flashlight light cone
   private flashlightGraphics?: Phaser.GameObjects.Graphics;
+  private collisionDebugGraphics?: Phaser.GameObjects.Graphics;
+  private isCollisionDebugVisible = false;
   private hotspotZones: Phaser.GameObjects.Zone[] = [];
 
   // Current active map definition
@@ -250,9 +252,11 @@ export class WorldScene extends Phaser.Scene {
     this.transitionBackdropImage.setDepth(1);
     this.transitionBackdropImage.setVisible(false);
 
-    // 4. Setup Flashlight Lighting Cone
+    // 4. Setup Flashlight Lighting Cone & Collision Debug Layer
     this.flashlightGraphics = this.add.graphics();
     this.flashlightGraphics.setDepth(20);
+    this.collisionDebugGraphics = this.add.graphics();
+    this.collisionDebugGraphics.setDepth(22);
 
     // 5. Setup Character Sprites (origin at feet for natural depth and obstacle alignment)
     this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_right_0');
@@ -433,6 +437,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.setupSceneHotspots();
     this.spawnWoodlandWildlife(mapId);
+    this.renderCollisionDebug();
     this.exitCooldownTimer = 600;
   }
 
@@ -1061,6 +1066,11 @@ export class WorldScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.Key;
     };
 
+    // Toggle visual collision debug map overlay with 'C' key
+    this.input.keyboard?.on('keydown-C', () => {
+      this.toggleCollisionDebug();
+    });
+
     // Tap-to-move pathfinding with UI click isolation
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, currentlyOver?: Phaser.GameObjects.GameObject[]) => {
       // 0. Ignore if scene transition is currently playing
@@ -1379,6 +1389,55 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  public toggleCollisionDebug(forceState?: boolean): boolean {
+    this.isCollisionDebugVisible = forceState ?? !this.isCollisionDebugVisible;
+    this.renderCollisionDebug();
+    return this.isCollisionDebugVisible;
+  }
+
+  private renderCollisionDebug(): void {
+    if (!this.collisionDebugGraphics) return;
+    this.collisionDebugGraphics.clear();
+    if (!this.isCollisionDebugVisible) return;
+
+    const def = MAP_DEFINITIONS[this.currentMapId];
+    if (!def) return;
+
+    const tileW = 16;
+    const tileH = 16;
+
+    for (let r = 0; r < 12; r++) {
+      const rowStr = def.collisionRows[r] ?? '';
+      for (let c = 0; c < 20; c++) {
+        const isSolid = rowStr[c] === '#';
+        const tx = c * tileW;
+        const ty = r * tileH;
+
+        if (isSolid) {
+          // Natural Collision Barrier (Red overlay)
+          this.collisionDebugGraphics.fillStyle(0xCC2222, 0.42);
+          this.collisionDebugGraphics.fillRect(tx, ty, tileW, tileH);
+          this.collisionDebugGraphics.lineStyle(1, 0xFF3333, 0.85);
+          this.collisionDebugGraphics.strokeRect(tx, ty, tileW, tileH);
+        } else {
+          // Walkable Pathway (Green border)
+          this.collisionDebugGraphics.lineStyle(1, 0x33DD66, 0.4);
+          this.collisionDebugGraphics.strokeRect(tx, ty, tileW, tileH);
+        }
+      }
+    }
+
+    // Highlight active zone transitions in golden amber
+    for (const exit of def.exits) {
+      const ex = exit.x * tileW;
+      const ey = exit.y * tileH;
+      this.collisionDebugGraphics.fillStyle(0xFFD700, 0.75);
+      this.collisionDebugGraphics.fillRect(ex, ey, tileW, tileH);
+      this.collisionDebugGraphics.lineStyle(1.5, 0xFFF275, 1);
+      this.collisionDebugGraphics.strokeRect(ex, ey, tileW, tileH);
+    }
+  }
+
   private exposeStateInspection(): void {
     if (typeof window !== 'undefined') {
       (window as unknown as { __GAME_STATE__?: () => GameStateInspection }).__GAME_STATE__ = () => ({
@@ -1393,6 +1452,10 @@ export class WorldScene extends Phaser.Scene {
 
       (window as unknown as { __SWITCH_CHAPTER__?: (id: number) => void }).__SWITCH_CHAPTER__ = (id: number) => {
         this.switchChapter(id);
+      };
+
+      (window as unknown as { __TOGGLE_COLLISION_DEBUG__?: (force?: boolean) => boolean }).__TOGGLE_COLLISION_DEBUG__ = (force?: boolean) => {
+        return this.toggleCollisionDebug(force);
       };
     }
   }

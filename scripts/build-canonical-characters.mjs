@@ -75,7 +75,11 @@ export const CHARACTER_REGISTRY = [
 ];
 
 function isMagentaOrPink(r, g, b) {
-  return r > 165 && b > 165 && ((r + b) / 2 - g > 35);
+  const absDiff = Math.abs(r - b);
+  const magScore = (r + b) / 2 - g;
+  if (absDiff < 35 && magScore > 45 && r > 135 && b > 125) return true;
+  if (r > 190 && b > 185 && g < 110) return true;
+  return false;
 }
 
 async function extractAllCharacters() {
@@ -96,40 +100,25 @@ async function extractAllCharacters() {
       for (let x = 0; x < boxW; x++) {
         const sIdx = ((y1 + y) * sheetW + (x1 + x)) * 3;
         const dIdx = (y * boxW + x) * 4;
-        inData[dIdx] = fullData[sIdx];
-        inData[dIdx + 1] = fullData[sIdx + 1];
-        inData[dIdx + 2] = fullData[sIdx + 2];
-        inData[dIdx + 3] = 255;
+        const r = fullData[sIdx], g = fullData[sIdx + 1], b = fullData[sIdx + 2];
+        inData[dIdx] = r;
+        inData[dIdx + 1] = g;
+        inData[dIdx + 2] = b;
+        inData[dIdx + 3] = isMagentaOrPink(r, g, b) ? 0 : 255;
       }
     }
 
-    // Flood fill from borders
-    const visited = new Uint8Array(boxW * boxH);
-    const queue = [];
-
+    // Clear divider line artifacts at very bottom if present
     for (let x = 0; x < boxW; x++) {
-      queue.push([x, 0], [x, boxH - 1]);
-    }
-    for (let y = 1; y < boxH - 1; y++) {
-      queue.push([0, y], [boxW - 1, y]);
-    }
-
-    while (queue.length > 0) {
-      const [x, y] = queue.pop();
-      if (x < 0 || x >= boxW || y < 0 || y >= boxH) continue;
-      const vIdx = y * boxW + x;
-      if (visited[vIdx]) continue;
-      visited[vIdx] = 1;
-
-      const pIdx = vIdx * 4;
-      if (isMagentaOrPink(inData[pIdx], inData[pIdx + 1], inData[pIdx + 2])) {
-        inData[pIdx + 3] = 0; // Transparent
-        queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      const idx = ((boxH - 1) * boxW + x) * 4;
+      const r = inData[idx], g = inData[idx + 1], b = inData[idx + 2];
+      if (r < 40 && g < 40 && b < 40) {
+        inData[idx + 3] = 0;
       }
     }
 
-    // Two-pass defringe on transparent border pixels
-    for (let pass = 0; pass < 2; pass++) {
+    // Three-pass defringe on transparent border pixels to remove pink/magenta halos
+    for (let pass = 0; pass < 3; pass++) {
       for (let y = 0; y < boxH; y++) {
         for (let x = 0; x < boxW; x++) {
           const idx = (y * boxW + x) * 4;
@@ -145,8 +134,16 @@ async function extractAllCharacters() {
             }
           }
 
-          if (adjTrans && (r + b) / 2 - g > 25 && r > 110 && b > 110) {
+          const absDiff = Math.abs(r - b);
+          const magScore = (r + b) / 2 - g;
+
+          if (adjTrans && absDiff < 35 && magScore > 50 && r > 115 && b > 105) {
             inData[idx + 3] = 0;
+          } else if (adjTrans && absDiff < 32 && magScore > 18 && (r + g + b) / 3 < 115) {
+            // Re-tint magenta-tainted border anti-aliasing into dark charcoal outline (#1E1B18)
+            inData[idx] = 30;
+            inData[idx + 1] = 27;
+            inData[idx + 2] = 24;
           }
         }
       }
@@ -182,10 +179,15 @@ async function extractAllCharacters() {
     const cropW = finalMaxX - finalMinX + 1;
     const cropH = finalMaxY - finalMinY + 1;
 
-    const pngBuffer = await sharp(inData, { raw: { width: boxW, height: boxH, channels: 4 } })
-      .extract({ left: finalMinX, top: finalMinY, width: cropW, height: cropH })
-      .png({ compressionLevel: 9 })
-      .toBuffer();
+    let pipeline = sharp(inData, { raw: { width: boxW, height: boxH, channels: 4 } })
+      .extract({ left: finalMinX, top: finalMinY, width: cropW, height: cropH });
+
+    // Ensure left-facing walk/move cycles are turned to the correct direction (flipped horizontally)
+    if (item.id.startsWith('ranger_walk_left_') || item.id.startsWith('pip_move_left_')) {
+      pipeline = pipeline.flop();
+    }
+
+    const pngBuffer = await pipeline.png({ compressionLevel: 9 }).toBuffer();
 
     const outPath = path.join(OUT_DIR, `${item.id}.png`);
     fs.writeFileSync(outPath, pngBuffer);

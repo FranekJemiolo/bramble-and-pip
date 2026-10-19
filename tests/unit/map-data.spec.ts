@@ -44,9 +44,9 @@ describe('Map Definitions & Collision Grids', () => {
     // Clearing around pegs (col 8, row 6) must be walkable
     expect(gbGrid.isSolid(8, 6)).toBe(false);
 
-    // Pine Ridge: pine tree (cols 7..8, rows 3..6) must be solid
+    // Pine Ridge: dense pine forest (col 14, row 4) must be solid
     const prGrid = createCollisionGridForMap('pine_ridge');
-    expect(prGrid.isSolid(7, 4)).toBe(true);
+    expect(prGrid.isSolid(14, 4)).toBe(true);
     // Snow trail (col 2, row 5) must be walkable
     expect(prGrid.isSolid(2, 5)).toBe(false);
 

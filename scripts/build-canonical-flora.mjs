@@ -128,69 +128,47 @@ async function extractAllFlora() {
       for (let x = 0; x < boxW; x++) {
         const sIdx = ((item.y1 + y) * sheetW + (item.x1 + x)) * 4;
         const dIdx = (y * boxW + x) * 4;
-        inData[dIdx] = fullData[sIdx];
-        inData[dIdx + 1] = fullData[sIdx + 1];
-        inData[dIdx + 2] = fullData[sIdx + 2];
-        inData[dIdx + 3] = 255;
+        const r = fullData[sIdx], g = fullData[sIdx + 1], b = fullData[sIdx + 2];
+        inData[dIdx] = r;
+        inData[dIdx + 1] = g;
+        inData[dIdx + 2] = b;
+        const isMag = (r > 130 && b > 130 && ((r + b) / 2 - g > 25)) ||
+                      (r > 180 && b > 180 && g < 140);
+        inData[dIdx + 3] = isMag ? 0 : 255;
       }
     }
 
-    function isMagenta(r, g, b) {
-      return r > 185 && b > 185 && g < 48;
-    }
+    // Three-pass defringe on transparent border pixels to remove pink/magenta halos
+    for (let pass = 0; pass < 3; pass++) {
+      for (let y = 0; y < boxH; y++) {
+        for (let x = 0; x < boxW; x++) {
+          const idx = (y * boxW + x) * 4;
+          if (inData[idx + 3] === 0) continue;
+          const r = inData[idx], g = inData[idx + 1], b = inData[idx + 2];
 
-    // Flood fill from borders
-    const visited = new Uint8Array(boxW * boxH);
-    const queue = [];
+          let adjTrans = false;
+          for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx >= boxW || ny < 0 || ny >= boxH || inData[(ny * boxW + nx) * 4 + 3] === 0) {
+              adjTrans = true;
+              break;
+            }
+          }
 
-    for (let x = 0; x < boxW; x++) {
-      queue.push([x, 0], [x, boxH - 1]);
-    }
-    for (let y = 1; y < boxH - 1; y++) {
-      queue.push([0, y], [boxW - 1, y]);
-    }
-
-    while (queue.length > 0) {
-      const [x, y] = queue.pop();
-      if (x < 0 || x >= boxW || y < 0 || y >= boxH) continue;
-      const vIdx = y * boxW + x;
-      if (visited[vIdx]) continue;
-      visited[vIdx] = 1;
-
-      const pIdx = vIdx * 4;
-      const r = inData[pIdx], g = inData[pIdx + 1], b = inData[pIdx + 2];
-      if (isMagenta(r, g, b)) {
-        inData[pIdx + 3] = 0;
-        queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+          if (adjTrans && r > 120 && b > 120 && ((r + b) / 2 - g > 20)) {
+            inData[idx + 3] = 0;
+          }
+        }
       }
     }
 
-    // Defringe: only modify border pixels based on original edge status
-    const isEdge = new Uint8Array(boxW * boxH);
+    // Final clean sweep: zero tolerance for any stray magenta/pink pixels
     for (let y = 0; y < boxH; y++) {
       for (let x = 0; x < boxW; x++) {
         const idx = (y * boxW + x) * 4;
         if (inData[idx + 3] === 0) continue;
-
-        let hasTrans = false;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = x + dx, ny = y + dy;
-            if (nx < 0 || nx >= boxW || ny < 0 || ny >= boxH || inData[(ny * boxW + nx) * 4 + 3] === 0) {
-              hasTrans = true; break;
-            }
-          }
-          if (hasTrans) break;
-        }
-        if (hasTrans) isEdge[y * boxW + x] = 1;
-      }
-    }
-
-    for (let i = 0; i < boxW * boxH; i++) {
-      if (isEdge[i]) {
-        const idx = i * 4;
         const r = inData[idx], g = inData[idx + 1], b = inData[idx + 2];
-        if ((r + b) / 2 - g > 45 && r > 140 && b > 140) {
+        if (r > 125 && b > 115 && ((r + b) / 2 - g > 20)) {
           inData[idx + 3] = 0;
         }
       }
