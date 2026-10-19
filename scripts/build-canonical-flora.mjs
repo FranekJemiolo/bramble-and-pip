@@ -119,6 +119,16 @@ async function extractAllFlora() {
 
   const base64Map = {};
 
+  function isMagenta(r, g, b) {
+    const magScore = (r + b) / 2 - g;
+    const absDiff = Math.abs(r - b);
+    if (r > 130 && b > 120 && g < 130) return true;
+    if (magScore > 18 && absDiff < 65 && (r > 60 || b > 60)) return true;
+    if (r > 60 && b > 55 && g < 50 && absDiff < 40) return true;
+    if (magScore > 12 && absDiff < 50 && (r > 85 || b > 80) && g < 140) return true;
+    return false;
+  }
+
   for (const item of FLORA_REGISTRY) {
     const boxW = item.x2 - item.x1 + 1;
     const boxH = item.y2 - item.y1 + 1;
@@ -128,13 +138,30 @@ async function extractAllFlora() {
       for (let x = 0; x < boxW; x++) {
         const sIdx = ((item.y1 + y) * sheetW + (item.x1 + x)) * 4;
         const dIdx = (y * boxW + x) * 4;
-        const r = fullData[sIdx], g = fullData[sIdx + 1], b = fullData[sIdx + 2];
-        inData[dIdx] = r;
-        inData[dIdx + 1] = g;
-        inData[dIdx + 2] = b;
-        const isMag = (r > 130 && b > 130 && ((r + b) / 2 - g > 25)) ||
-                      (r > 180 && b > 180 && g < 140);
-        inData[dIdx + 3] = isMag ? 0 : 255;
+        inData[dIdx] = fullData[sIdx];
+        inData[dIdx + 1] = fullData[sIdx + 1];
+        inData[dIdx + 2] = fullData[sIdx + 2];
+        inData[dIdx + 3] = 255;
+      }
+    }
+
+    // Flood fill from edges to remove surrounding magenta/pink background
+    const visited = new Uint8Array(boxW * boxH);
+    const queue = [];
+    for (let x = 0; x < boxW; x++) { queue.push([x, 0], [x, boxH - 1]); }
+    for (let y = 1; y < boxH - 1; y++) { queue.push([0, y], [boxW - 1, y]); }
+
+    while (queue.length > 0) {
+      const [x, y] = queue.pop();
+      if (x < 0 || x >= boxW || y < 0 || y >= boxH) continue;
+      const vIdx = y * boxW + x;
+      if (visited[vIdx]) continue;
+      visited[vIdx] = 1;
+      const pIdx = vIdx * 4;
+      const r = inData[pIdx], g = inData[pIdx + 1], b = inData[pIdx + 2];
+      if (isMagenta(r, g, b)) {
+        inData[pIdx + 3] = 0;
+        queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
       }
     }
 
@@ -155,7 +182,7 @@ async function extractAllFlora() {
             }
           }
 
-          if (adjTrans && r > 120 && b > 120 && ((r + b) / 2 - g > 20)) {
+          if (adjTrans && isMagenta(r, g, b)) {
             inData[idx + 3] = 0;
           }
         }
@@ -168,7 +195,7 @@ async function extractAllFlora() {
         const idx = (y * boxW + x) * 4;
         if (inData[idx + 3] === 0) continue;
         const r = inData[idx], g = inData[idx + 1], b = inData[idx + 2];
-        if (r > 125 && b > 115 && ((r + b) / 2 - g > 20)) {
+        if (isMagenta(r, g, b)) {
           inData[idx + 3] = 0;
         }
       }
@@ -188,7 +215,20 @@ async function extractAllFlora() {
     }
 
     if (minX > maxX) {
-      console.warn(`[WARN] Empty sprite for ${item.id}`);
+      console.warn(`[WARN] Empty sprite for ${item.id}, providing clean transparent fallback`);
+      const fallbackPng = await sharp({
+        create: {
+          width: 32,
+          height: 32,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        },
+      })
+        .png()
+        .toBuffer();
+      const pngPath = path.join(OUT_DIR, `${item.id}.png`);
+      fs.writeFileSync(pngPath, fallbackPng);
+      base64Map[item.id] = `data:image/png;base64,${fallbackPng.toString('base64')}`;
       continue;
     }
 

@@ -259,7 +259,7 @@ export class WorldScene extends Phaser.Scene {
     this.collisionDebugGraphics.setDepth(22);
 
     // 5. Setup Character Sprites (origin at feet for natural depth and obstacle alignment)
-    this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_right_0');
+    this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_down_0');
     this.playerSprite.setOrigin(0.5, 0.9);
     const isCanonicalRanger = this.textures.exists('ranger_walk_down_0');
     this.playerSprite.setScale(isCanonicalRanger ? 0.28 : 1.0);
@@ -889,8 +889,35 @@ export class WorldScene extends Phaser.Scene {
     this.floraSprites.push(sprite);
   }
 
+  private addCollectible(
+    id: string,
+    name: string,
+    description: string,
+    pictogramKey: string,
+    x: number,
+    y: number
+  ): void {
+    if (this.campaign.hasItem(id)) {
+      return;
+    }
+    const textureKey = this.textures.exists(`item_${id}`) ? `item_${id}` : 'item_acorn';
+    const sprite = this.add.sprite(x, y, textureKey);
+    sprite.setScale(0.7);
+    sprite.setOrigin(0.5, 0.5);
+    sprite.setDepth(8);
+    this.collectibles.push({
+      id,
+      name,
+      description,
+      pictogramKey,
+      x,
+      y,
+      sprite,
+    });
+  }
+
   private spawnWoodlandWildlife(mapId?: MapId): void {
-    // 1. Clear existing wildlife, track, and flora sprites
+    // 1. Clear existing wildlife, track, flora, and collectible sprites
     for (const a of this.animals) {
       a.sprite.destroy();
     }
@@ -906,18 +933,10 @@ export class WorldScene extends Phaser.Scene {
     }
     this.floraSprites = [];
 
-    // 2. Overworld Collectibles (instantiated once)
-    if (this.collectibles.length === 0) {
-      const acorn = this.add.sprite(90, 100, 'item_acorn');
-      const pinecone = this.add.sprite(210, 120, 'item_pinecone');
-      const leaf = this.add.sprite(150, 80, 'item_leaf_oak');
-
-      this.collectibles.push(
-        { id: 'acorn', name: 'Oak Acorn', description: 'Smooth glossy acorn', pictogramKey: 'acorn', x: 90, y: 100, sprite: acorn },
-        { id: 'pinecone', name: 'Pine Cone', description: 'Fragrant pine cone', pictogramKey: 'pinecone', x: 210, y: 120, sprite: pinecone },
-        { id: 'leaf_oak', name: 'Autumn Oak Leaf', description: 'Crisp golden leaf', pictogramKey: 'leaf', x: 150, y: 80, sprite: leaf }
-      );
+    for (const c of this.collectibles) {
+      c.sprite.destroy();
     }
+    this.collectibles = [];
 
     const activeMap = mapId ?? this.currentMapId;
 
@@ -925,7 +944,7 @@ export class WorldScene extends Phaser.Scene {
       case 'ranger_cabin':
         this.addFauna('sparrow', 'sparrow_stand', 200, 105, 0.32, 'Garden Sparrow', ['PECK', 'SEED', 'BREAD'], 'Pip: A cheerful sparrow gathering sunflower seeds near the cabin steps!', 'chime');
         this.addFauna('hedgehog', 'hedgehog_idle', 240, 80, 0.36, 'Garden Hedgehog', ['SNUFFLE', 'IN', 'GRASS'], 'Pip: Snuffling happily in the cabbage patch for slugs and beetles!', 'woodblock');
-        this.addFauna('dormouse', 'dormouse_sleep_1', 45, 75, 0.30, 'Curled Dormouse', ['SLEEP', 'COZY', 'NEST'], 'Pip: Fast asleep in a woven reed basket in the garden shed!', 'kalimba');
+        this.addFauna('dormouse', 'dormouse_sleep_1', 75, 75, 0.30, 'Curled Dormouse', ['SLEEP', 'COZY', 'NEST'], 'Pip: Fast asleep in a woven reed basket in the garden shed!', 'kalimba');
         this.addFauna('insect', 'insect_bumblebee', 260, 55, 0.28, 'Fuzzy Bumblebee', ['BUZZ', 'SWEET', 'FLOWER'], 'Pip: Gathering amber pollen from yellow zucchini blooms!', 'chime');
         this.addFauna('insect', 'insect_snail', 220, 110, 0.28, 'Mossy Snail', ['SLOW', 'SLIDE', 'STONE'], 'Pip: Leaving a silvery trail across the smooth patio stone!', 'woodblock');
         this.addTrack('track_bird', 'track_bird_3toed', 180, 110, 0.32, 'Three-Toed Sparrow Trail', 'Tiny three-toed bird tracks leading to the garden water saucer.');
@@ -968,6 +987,7 @@ export class WorldScene extends Phaser.Scene {
         this.addFlora('lilypad_subitize_5', 55, 175, 0.36, 11);
         this.addFlora('reed_cattail_cluster', 75, 140, 0.35, 10);
         this.addFlora('tree_birch_summer', 280, 55, 0.38, 10);
+        this.addCollectible('acorn', 'Oak Acorn', 'Smooth glossy acorn', 'acorn', 235, 135);
         break;
 
       case 'mossy_hollow':
@@ -983,6 +1003,7 @@ export class WorldScene extends Phaser.Scene {
         this.addFlora('fern_summer', 60, 95, 0.34, 10);
         this.addFlora('bramble_dense_summer', 240, 110, 0.35, 10);
         this.addFlora('stump_summer_broken', 135, 65, 0.36, 9);
+        this.addCollectible('lantern', 'Brass Lantern', 'Warm brass lantern glowing gently', 'lantern', 180, 125);
         break;
 
       case 'mossy_gearbox':
@@ -1012,6 +1033,7 @@ export class WorldScene extends Phaser.Scene {
         this.addFlora('flower_dandelion', 95, 125, 0.30, 12);
         this.addFlora('flower_marigold', 170, 130, 0.30, 12);
         this.addFlora('item_maple_seed_pair', 120, 140, 0.30, 12);
+        this.addCollectible('leaf_oak', 'Autumn Oak Leaf', 'Crisp golden leaf', 'leaf', 150, 140);
         break;
 
       case 'pine_ridge':
@@ -1026,6 +1048,7 @@ export class WorldScene extends Phaser.Scene {
         this.addFlora('shrub_pine_dark', 90, 80, 0.35, 10);
         this.addFlora('item_stick_branch', 130, 120, 0.30, 12);
         this.addFlora('item_pinecone_rich', 170, 95, 0.30, 12);
+        this.addCollectible('pinecone', 'Pine Cone', 'Fragrant pine cone', 'pinecone', 180, 95);
         break;
 
       case 'ranger_lodge':
@@ -1234,6 +1257,7 @@ export class WorldScene extends Phaser.Scene {
         const pipDir = this.pipCompanion.facing;
         const pipMoveKey = `pip_move_${pipDir}_${f % 2}`;
         this.pipSprite.setTexture(this.textures.exists(pipMoveKey) ? pipMoveKey : `pip_FOLLOWING_${f}`);
+        this.pipSprite.setFlipX(false);
 
         this.stepSoundTimer += delta;
         if (this.stepSoundTimer > 320) {
@@ -1245,6 +1269,7 @@ export class WorldScene extends Phaser.Scene {
       // Stopped / Idle / Mood
       this.barrierBumpTimer = 0;
       this.playerSprite.setTexture(`ranger_${this.playerBody.facing}_0`);
+      this.pipSprite.setFlipX(this.playerBody.facing === 'left');
       const pipState = this.pipCompanion.currentState;
       if (pipState === 'INSPECTING') {
         this.pipSprite.setTexture(this.textures.exists('pip_mood_leaf_helper') ? 'pip_mood_leaf_helper' : 'pip_INSPECTING_0');
@@ -1377,8 +1402,6 @@ export class WorldScene extends Phaser.Scene {
       this.loadMap('mossy_gearbox');
     } else if (px >= 320 && py >= 192 && this.currentMapId !== 'pine_ridge' && !this.isTransitioning) {
       this.loadMap('pine_ridge');
-    } else if (px < 320 && py >= 192 && this.currentMapId !== 'mossy_hollow' && !this.isTransitioning) {
-      this.loadMap('mossy_hollow');
     }
 
     const def = MAP_DEFINITIONS[this.currentMapId];
@@ -1456,6 +1479,14 @@ export class WorldScene extends Phaser.Scene {
 
       (window as unknown as { __TOGGLE_COLLISION_DEBUG__?: (force?: boolean) => boolean }).__TOGGLE_COLLISION_DEBUG__ = (force?: boolean) => {
         return this.toggleCollisionDebug(force);
+      };
+
+      (window as unknown as { __IS_COLLISION_DEBUG_VISIBLE__?: () => boolean }).__IS_COLLISION_DEBUG_VISIBLE__ = () => {
+        return this.isCollisionDebugVisible;
+      };
+
+      (window as unknown as { __LOAD_MAP__?: (mapId: MapId, spawn?: { x: number; y: number }) => void }).__LOAD_MAP__ = (mapId: MapId, spawn?: { x: number; y: number }) => {
+        this.loadMap(mapId, spawn);
       };
     }
   }
