@@ -99,6 +99,7 @@ export class WorldScene extends Phaser.Scene {
   private collectibles: CollectibleItem[] = [];
   private floraSprites: Phaser.GameObjects.Sprite[] = [];
   private stepSoundTimer = 0;
+  private barrierBumpTimer = 0;
   private activeDPadDirection: 'up' | 'down' | 'left' | 'right' | null = null;
   private dpadPulseTimer = 0;
 
@@ -1118,6 +1119,7 @@ export class WorldScene extends Phaser.Scene {
       const dtSec = Math.min(delta / 1000, 0.05);
       const res = this.movementController.step(this.playerBody, inputVec, dtSec, this.collisionGrid);
       if (res.moved) {
+        this.barrierBumpTimer = 0;
         this.walkCycleTimer += delta;
         const f = Math.floor(this.walkCycleTimer / 140) % 4;
         this.playerSprite.setTexture(`ranger_${dir}_${f}`);
@@ -1133,6 +1135,13 @@ export class WorldScene extends Phaser.Scene {
         if (this.stepSoundTimer > 320) {
           this.stepSoundTimer = 0;
           audioManager.playFootstep();
+        }
+      } else {
+        // Natural barrier collision: quiet rustic wood chime / rustle without penalties
+        this.barrierBumpTimer += delta;
+        if (this.barrierBumpTimer > 400) {
+          this.barrierBumpTimer = 0;
+          audioManager.playWoodblock();
         }
       }
     } else if (this.currentWaypoints.length > 0) {
@@ -1154,6 +1163,13 @@ export class WorldScene extends Phaser.Scene {
         const res = this.movementController.step(this.playerBody, { x: nx, y: ny }, dtSec, this.collisionGrid);
         if (!res.moved) {
           this.currentWaypoints = [];
+          this.barrierBumpTimer += delta;
+          if (this.barrierBumpTimer > 400) {
+            this.barrierBumpTimer = 0;
+            audioManager.playWoodblock();
+          }
+        } else {
+          this.barrierBumpTimer = 0;
         }
         this.walkCycleTimer += delta;
         const f = Math.floor(this.walkCycleTimer / 140) % 4;
@@ -1174,6 +1190,7 @@ export class WorldScene extends Phaser.Scene {
       }
     } else {
       // Stopped / Idle / Mood
+      this.barrierBumpTimer = 0;
       this.playerSprite.setTexture(`ranger_${this.playerBody.facing}_0`);
       const pipState = this.pipCompanion.currentState;
       if (pipState === 'INSPECTING') {

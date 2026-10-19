@@ -476,6 +476,14 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
         targetMap: 'mossy_gearbox',
         targetSpawn: { x: 304, y: 128 },
       },
+      {
+        x: 19,
+        y: 6,
+        radius: 22,
+        direction: 'east',
+        targetMap: 'pine_ridge',
+        targetSpawn: { x: 16, y: 112 },
+      },
     ],
     hotspots: [
       {
@@ -529,6 +537,14 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
         direction: 'west',
         targetMap: 'mossy_hollow',
         targetSpawn: { x: 304, y: 104 },
+      },
+      {
+        x: 0,
+        y: 7,
+        radius: 22,
+        direction: 'west',
+        targetMap: 'sunset_meadow',
+        targetSpawn: { x: 304, y: 96 },
       },
       {
         x: 9,
