@@ -35,7 +35,7 @@ describe('LocalPersistenceEngine Double-Buffer & CRC32 Recovery', () => {
     // Deliberately corrupt primary in storage
     const primaryRaw = await memory.getItem('test_corrupt_primary');
     expect(primaryRaw).not.toBeNull();
-    const corruptedPrimary = primaryRaw!.replace('200', '999'); // Invalidates CRC32
+    const corruptedPrimary = primaryRaw!.replace('"score":200', '"score":999'); // Invalidates CRC32
     await memory.setItem('test_corrupt_primary', corruptedPrimary);
 
     // Load should detect CRC failure on primary and seamlessly recover version 1 from backup
