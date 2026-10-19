@@ -143,17 +143,23 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private bakeProceduralTextures(): void {
-    // Ranger walk cycles
+    // Ranger walk cycles - register fallback procedural textures only if canonical textures are not already present
     for (const dir of ['down', 'up', 'left', 'right'] as const) {
       for (let f = 0; f < 4; f++) {
-        this.textureBank.register(`ranger_${dir}_${f}`, SpriteGenerator.generateRangerFrame(dir, f));
+        const key = `ranger_${dir}_${f}`;
+        if (!this.textures.exists(key)) {
+          this.textureBank.register(key, SpriteGenerator.generateRangerFrame(dir, f));
+        }
       }
     }
 
-    // Pip frames
+    // Pip frames - register fallback procedural textures only if canonical textures are not already present
     for (const state of ['FOLLOWING', 'IDLE_CURIOUS', 'INSPECTING', 'YAWNING', 'SLEEPING'] as const) {
       for (let f = 0; f < 4; f++) {
-        this.textureBank.register(`pip_${state}_${f}`, SpriteGenerator.generatePipFrame(state, f));
+        const key = `pip_${state}_${f}`;
+        if (!this.textures.exists(key)) {
+          this.textureBank.register(key, SpriteGenerator.generatePipFrame(state, f));
+        }
       }
     }
 
@@ -250,11 +256,15 @@ export class WorldScene extends Phaser.Scene {
     // 5. Setup Character Sprites (origin at feet for natural depth and obstacle alignment)
     this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_right_0');
     this.playerSprite.setOrigin(0.5, 0.9);
+    const isCanonicalRanger = this.textures.exists('ranger_walk_down_0');
+    this.playerSprite.setScale(isCanonicalRanger ? 0.28 : 1.0);
     this.playerSprite.setDepth(25);
     this.playerSprite.setVisible(true);
 
     this.pipSprite = this.add.sprite(this.playerBody.x - 16, this.playerBody.y, 'pip_FOLLOWING_0');
     this.pipSprite.setOrigin(0.5, 0.9);
+    const isCanonicalPip = this.textures.exists('pip_move_down_0');
+    this.pipSprite.setScale(isCanonicalPip ? 0.26 : 1.0);
     this.pipSprite.setDepth(24);
     this.pipSprite.setVisible(true);
 
@@ -528,7 +538,8 @@ export class WorldScene extends Phaser.Scene {
           walkAnimTimer += 16;
           const frame = Math.floor(walkAnimTimer / 120) % 4;
           this.playerSprite.setTexture(`ranger_${facing}_${frame}`);
-          this.pipSprite.setTexture(`pip_FOLLOWING_${frame}`);
+          const pipMoveKey = `pip_move_${facing}_${frame % 2}`;
+          this.pipSprite.setTexture(this.textures.exists(pipMoveKey) ? pipMoveKey : `pip_FOLLOWING_${frame}`);
           const pipOffset = isEast ? -16 : isWest ? 16 : 0;
           const pipOffsetY = isSouth ? -16 : isNorth ? 16 : 0;
           this.pipSprite.setPosition(this.playerSprite.x + pipOffset, this.playerSprite.y + pipOffsetY);
@@ -1114,7 +1125,9 @@ export class WorldScene extends Phaser.Scene {
         this.pipCompanion.recordPlayerStep(this.playerBody.x, this.playerBody.y, dir);
         const targetBc = this.pipCompanion.getTargetBreadcrumb();
         this.pipSprite.setPosition(targetBc.x, targetBc.y);
-        this.pipSprite.setTexture(`pip_FOLLOWING_${f}`);
+        const pipDir = this.pipCompanion.facing;
+        const pipMoveKey = `pip_move_${pipDir}_${f % 2}`;
+        this.pipSprite.setTexture(this.textures.exists(pipMoveKey) ? pipMoveKey : `pip_FOLLOWING_${f}`);
 
         this.stepSoundTimer += delta;
         if (this.stepSoundTimer > 320) {
@@ -1149,7 +1162,9 @@ export class WorldScene extends Phaser.Scene {
         this.pipCompanion.recordPlayerStep(this.playerBody.x, this.playerBody.y, dir);
         const targetBc = this.pipCompanion.getTargetBreadcrumb();
         this.pipSprite.setPosition(targetBc.x, targetBc.y);
-        this.pipSprite.setTexture(`pip_FOLLOWING_${f}`);
+        const pipDir = this.pipCompanion.facing;
+        const pipMoveKey = `pip_move_${pipDir}_${f % 2}`;
+        this.pipSprite.setTexture(this.textures.exists(pipMoveKey) ? pipMoveKey : `pip_FOLLOWING_${f}`);
 
         this.stepSoundTimer += delta;
         if (this.stepSoundTimer > 320) {
@@ -1158,9 +1173,18 @@ export class WorldScene extends Phaser.Scene {
         }
       }
     } else {
-      // Stopped / Idle
+      // Stopped / Idle / Mood
       this.playerSprite.setTexture(`ranger_${this.playerBody.facing}_0`);
-      this.pipSprite.setTexture('pip_IDLE_CURIOUS_0');
+      const pipState = this.pipCompanion.currentState;
+      if (pipState === 'INSPECTING') {
+        this.pipSprite.setTexture(this.textures.exists('pip_mood_leaf_helper') ? 'pip_mood_leaf_helper' : 'pip_INSPECTING_0');
+      } else if (pipState === 'YAWNING') {
+        this.pipSprite.setTexture(this.textures.exists('pip_mood_yawn_sleepy') ? 'pip_mood_yawn_sleepy' : 'pip_YAWNING_0');
+      } else if (pipState === 'SLEEPING') {
+        this.pipSprite.setTexture(this.textures.exists('pip_mood_nest_sleep') ? 'pip_mood_nest_sleep' : 'pip_SLEEPING_0');
+      } else {
+        this.pipSprite.setTexture(this.textures.exists('pip_mood_curious_perked') ? 'pip_mood_curious_perked' : 'pip_IDLE_CURIOUS_0');
+      }
     }
 
     // Check map exits with smooth transition

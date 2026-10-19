@@ -7,10 +7,58 @@
 import type Phaser from 'phaser';
 import { CANONICAL_FAUNA_DATA } from './canonicalFaunaAssets';
 import { CANONICAL_FLORA_DATA } from './canonicalFloraAssets';
+import { CANONICAL_CHARACTER_DATA } from './canonicalCharacterAssets';
 
 export const CANONICAL_ASSETS: Record<string, string> = {
   ...CANONICAL_FAUNA_DATA,
   ...CANONICAL_FLORA_DATA,
+  ...CANONICAL_CHARACTER_DATA,
+  // Canonical Junior Ranger walk frames mapping (for 4 directions, 4 frames)
+  ranger_down_0: CANONICAL_CHARACTER_DATA.ranger_walk_down_0 ?? '',
+  ranger_down_1: CANONICAL_CHARACTER_DATA.ranger_walk_down_1 ?? '',
+  ranger_down_2: CANONICAL_CHARACTER_DATA.ranger_walk_down_2 ?? '',
+  ranger_down_3: CANONICAL_CHARACTER_DATA.ranger_walk_down_3 ?? '',
+
+  ranger_up_0: CANONICAL_CHARACTER_DATA.ranger_walk_up_0 ?? '',
+  ranger_up_1: CANONICAL_CHARACTER_DATA.ranger_walk_up_1 ?? '',
+  ranger_up_2: CANONICAL_CHARACTER_DATA.ranger_walk_up_2 ?? '',
+  ranger_up_3: CANONICAL_CHARACTER_DATA.ranger_walk_up_3 ?? '',
+
+  ranger_left_0: CANONICAL_CHARACTER_DATA.ranger_walk_left_0 ?? '',
+  ranger_left_1: CANONICAL_CHARACTER_DATA.ranger_walk_left_1 ?? '',
+  ranger_left_2: CANONICAL_CHARACTER_DATA.ranger_walk_left_2 ?? '',
+  ranger_left_3: CANONICAL_CHARACTER_DATA.ranger_walk_left_3 ?? '',
+
+  ranger_right_0: CANONICAL_CHARACTER_DATA.ranger_walk_right_0 ?? '',
+  ranger_right_1: CANONICAL_CHARACTER_DATA.ranger_walk_right_1 ?? '',
+  ranger_right_2: CANONICAL_CHARACTER_DATA.ranger_walk_right_2 ?? '',
+  ranger_right_3: CANONICAL_CHARACTER_DATA.ranger_walk_right_3 ?? '',
+
+  // Pip state animation mapping
+  pip_FOLLOWING_0: CANONICAL_CHARACTER_DATA.pip_move_right_0 ?? '',
+  pip_FOLLOWING_1: CANONICAL_CHARACTER_DATA.pip_move_right_1 ?? '',
+  pip_FOLLOWING_2: CANONICAL_CHARACTER_DATA.pip_move_left_0 ?? '',
+  pip_FOLLOWING_3: CANONICAL_CHARACTER_DATA.pip_move_left_1 ?? '',
+
+  pip_IDLE_CURIOUS_0: CANONICAL_CHARACTER_DATA.pip_mood_curious_perked ?? '',
+  pip_IDLE_CURIOUS_1: CANONICAL_CHARACTER_DATA.pip_mood_curious_perked ?? '',
+  pip_IDLE_CURIOUS_2: CANONICAL_CHARACTER_DATA.pip_mood_happy_jump ?? '',
+  pip_IDLE_CURIOUS_3: CANONICAL_CHARACTER_DATA.pip_mood_curious_perked ?? '',
+
+  pip_INSPECTING_0: CANONICAL_CHARACTER_DATA.pip_mood_leaf_helper ?? '',
+  pip_INSPECTING_1: CANONICAL_CHARACTER_DATA.pip_mood_gear_helper_1 ?? '',
+  pip_INSPECTING_2: CANONICAL_CHARACTER_DATA.pip_mood_gear_helper_2 ?? '',
+  pip_INSPECTING_3: CANONICAL_CHARACTER_DATA.pip_mood_leaf_helper ?? '',
+
+  pip_YAWNING_0: CANONICAL_CHARACTER_DATA.pip_mood_yawn_sleepy ?? '',
+  pip_YAWNING_1: CANONICAL_CHARACTER_DATA.pip_mood_yawn_sleepy ?? '',
+  pip_YAWNING_2: CANONICAL_CHARACTER_DATA.pip_mood_yawn_sleepy ?? '',
+  pip_YAWNING_3: CANONICAL_CHARACTER_DATA.pip_mood_yawn_sleepy ?? '',
+
+  pip_SLEEPING_0: CANONICAL_CHARACTER_DATA.pip_mood_nest_sleep ?? '',
+  pip_SLEEPING_1: CANONICAL_CHARACTER_DATA.pip_mood_nest_sleep ?? '',
+  pip_SLEEPING_2: CANONICAL_CHARACTER_DATA.pip_mood_nest_sleep ?? '',
+  pip_SLEEPING_3: CANONICAL_CHARACTER_DATA.pip_mood_nest_sleep ?? '',
   animal_hedgehog: CANONICAL_FAUNA_DATA.hedgehog_idle ?? '',
   animal_badger: CANONICAL_FAUNA_DATA.badger_walk ?? '',
   animal_rabbit: CANONICAL_FAUNA_DATA.rabbit_sit ?? '',

@@ -45,7 +45,7 @@ test.describe('Steering and Canvas Scaling', () => {
       };
     });
     expect(midRight.playerTexture).toContain('ranger_right');
-    expect(midRight.pipTexture).toContain('pip_FOLLOWING');
+    expect(midRight.pipTexture).toMatch(/^(pip_FOLLOWING|pip_move)/);
 
     await page.keyboard.up('ArrowRight');
     await page.waitForTimeout(100);
@@ -99,7 +99,7 @@ test.describe('Steering and Canvas Scaling', () => {
       };
     });
     expect(holdState.playerTexture).toMatch(/^ranger_right_[0-3]$/);
-    expect(holdState.pipTexture).toMatch(/^pip_FOLLOWING_[0-3]$/);
+    expect(holdState.pipTexture).toMatch(/^(pip_FOLLOWING_[0-3]|pip_move_[a-z]+_[0-1])$/);
 
     await page.mouse.up();
     await page.waitForTimeout(200);

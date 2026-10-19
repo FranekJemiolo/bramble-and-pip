@@ -25,6 +25,18 @@ export class BedtimeScene extends Phaser.Scene {
       // Warm Fireplace flickering ember overlay
       this.fireGlow = this.add.rectangle(102, 108, 28, 20, 0xE5C158, 0.35);
 
+      // Cozy resting Junior Ranger tucked under patchwork quilt and Pip in moss nest
+      if (this.textures.exists('ranger_rest_quilt_sleep')) {
+        const rangerRest = this.add.image(65, 125, 'ranger_rest_quilt_sleep').setOrigin(0.5, 0.9);
+        rangerRest.setScale(0.36);
+        rangerRest.setDepth(15);
+      }
+      if (this.textures.exists('pip_mood_nest_sleep')) {
+        const pipNest = this.add.image(140, 130, 'pip_mood_nest_sleep').setOrigin(0.5, 0.9);
+        pipNest.setScale(0.32);
+        pipNest.setDepth(15);
+      }
+
       // "Zzz..." above sleeping bear and Pip
       this.add.text(75, 78, 'Zzz...', {
         fontFamily: 'monospace',
