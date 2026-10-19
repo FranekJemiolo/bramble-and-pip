@@ -129,6 +129,10 @@ export class AcousticAudioManager {
     this.playBufferOnBus('water_bubble', 'sfx');
   }
 
+  playChime(): void {
+    this.playWaterBubble();
+  }
+
   playPipChirrup(): void {
     this.playBufferOnBus('pip_chirrup', 'voice');
   }

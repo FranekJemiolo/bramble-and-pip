@@ -63,6 +63,16 @@ export class PipCompanion {
     return this.animFrame;
   }
 
+  reset(x: number, y: number, facing: Facing = 'down'): void {
+    this.currentX = x;
+    this.currentY = y;
+    this.currentFacing = facing;
+    this.headIdx = 0;
+    for (let i = 0; i < this.bufferSize; i++) {
+      this.buffer[i] = { x, y, facing };
+    }
+  }
+
   /**
    * Pushes a new player position breadcrumb into the ring buffer.
    * Call when player moves.

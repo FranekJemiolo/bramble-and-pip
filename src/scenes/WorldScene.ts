@@ -4,8 +4,8 @@ import {
   SESSION,
 } from '../core/constants';
 import {
-  CollisionGrid,
   KinematicMovementController,
+  type CollisionGrid,
   type Facing,
   type KinBody,
 } from '../core/world/kinematics';
@@ -22,6 +22,12 @@ import type { Vec2 } from '../core/math';
 import { audioManager } from '../core/audio/AcousticAudioManager';
 import { registerCanonicalTextures } from '../render/canonicalAssets';
 import { ChapterMapModal } from '../ui/ChapterMapModal';
+import {
+  MAP_DEFINITIONS,
+  createCollisionGridForMap,
+  getMapIdForChapter,
+  type MapId,
+} from '../core/world/mapData';
 
 export interface GameStateInspection {
   player: { x: number; y: number; facing: Facing };
@@ -106,9 +112,8 @@ export class WorldScene extends Phaser.Scene {
   private flashlightGraphics?: Phaser.GameObjects.Graphics;
   private hotspotZones: Phaser.GameObjects.Zone[] = [];
 
-  // Map dimensions (640x384 px - 40x24 tiles of 16px)
-  private readonly mapTilesX = 40;
-  private readonly mapTilesY = 24;
+  // Current active map definition
+  private currentMapId: MapId = 'whispering_woods';
 
   constructor() {
     super('WorldScene');
@@ -163,13 +168,26 @@ export class WorldScene extends Phaser.Scene {
 
   create(): void {
     // 1. Initialize Subsystems & Viewport
+    this.currentMapId = getMapIdForChapter(this.campaign.currentChapter.id);
+    const mapDef = MAP_DEFINITIONS[this.currentMapId];
+
     this.cameras.main.setViewport(0, 0, BASE_WIDTH, 192);
-    this.movementController = new KinematicMovementController();
+    this.cameras.main.setBounds(0, 0, BASE_WIDTH, 192);
+    this.movementController = new KinematicMovementController({
+      walkSpeed: 64,
+      halfW: 5,
+      halfH: 3,
+    });
+    this.playerBody = {
+      x: mapDef.defaultSpawn.x,
+      y: mapDef.defaultSpawn.y,
+      facing: 'right',
+    };
     this.cameraController = new PixelPerfectCameraController(
       BASE_WIDTH,
       192,
-      this.mapTilesX * 16,
-      this.mapTilesY * 16,
+      BASE_WIDTH,
+      192,
       this.playerBody.x,
       this.playerBody.y
     );
@@ -178,36 +196,26 @@ export class WorldScene extends Phaser.Scene {
       this.switchChapter(chapterId);
     });
 
-    // 2. Setup Walkable Collision Grid (40x24 tiles)
-    const cells = new Uint8Array(this.mapTilesX * this.mapTilesY);
-    for (let y = 0; y < this.mapTilesY; y++) {
-      for (let x = 0; x < this.mapTilesX; x++) {
-        const isBorder = x === 0 || x === this.mapTilesX - 1 || y === 0 || y === this.mapTilesY - 1;
-        // Water / millpond in NE: x: 23..27, y: 2..8, except bridge at y: 5
-        const isWater = (x >= 23 && x <= 27 && y >= 2 && y <= 8 && y !== 5);
-        cells[y * this.mapTilesX + x] = (isBorder || isWater) ? 1 : 0;
-      }
-    }
-    this.collisionGrid = new CollisionGrid(this.mapTilesX, this.mapTilesY, cells);
+    // 2. Setup Walkable Collision Grid for Current Map
+    this.collisionGrid = createCollisionGridForMap(this.currentMapId);
     this.pathfinder = new TilePathfindingManager(this.collisionGrid);
 
-    // 3. Render Full Explorable World Map Backdrop (640x384)
-    const mapKey = this.textures.exists('world_full_map_bg')
-      ? 'world_full_map_bg'
-      : this.getBackdropKeyForChapter(this.campaign.currentChapter.id);
-    this.backdropImage = this.add.image(0, 0, mapKey).setOrigin(0, 0);
-    this.backdropImage.setDisplaySize(this.mapTilesX * 16, this.mapTilesY * 16);
+    // 3. Render Canonical Map Backdrop (320x192)
+    this.backdropImage = this.add.image(0, 0, mapDef.textureKey).setOrigin(0, 0);
+    this.backdropImage.setDisplaySize(BASE_WIDTH, 192);
 
     // 4. Setup Flashlight Lighting Cone
     this.flashlightGraphics = this.add.graphics();
     this.flashlightGraphics.setDepth(20);
 
-    // 5. Setup Character Sprites (Active and steerable across world viewport)
+    // 5. Setup Character Sprites (origin at feet for natural depth and obstacle alignment)
     this.playerSprite = this.add.sprite(this.playerBody.x, this.playerBody.y, 'ranger_right_0');
+    this.playerSprite.setOrigin(0.5, 0.9);
     this.playerSprite.setDepth(25);
     this.playerSprite.setVisible(true);
 
     this.pipSprite = this.add.sprite(this.playerBody.x - 16, this.playerBody.y, 'pip_FOLLOWING_0');
+    this.pipSprite.setOrigin(0.5, 0.9);
     this.pipSprite.setDepth(24);
     this.pipSprite.setVisible(true);
 
@@ -217,7 +225,7 @@ export class WorldScene extends Phaser.Scene {
     // 7. Setup Carved Wooden Location Banner Clickzone (Top-Left)
     this.setupLocationSign();
 
-    // 8. Setup Dynamic Dialogue Banner (Initially hidden to reveal canonical backdrop dialogue)
+    // 8. Setup Dynamic Dialogue Banner
     this.setupDialogueBanner();
 
     // 9. Input & Controls Setup
@@ -236,30 +244,6 @@ export class WorldScene extends Phaser.Scene {
     this.exposeStateInspection();
   }
 
-  private getBackdropKeyForChapter(chapterId: number): string {
-    if (chapterId >= 1 && chapterId <= 5) {
-      return this.textures.exists('whispering_woods_bg') ? 'whispering_woods_bg' : 'tile_grass';
-    }
-    if (chapterId === 7) {
-      return this.textures.exists('mossy_gearbox_bg') ? 'mossy_gearbox_bg' : 'whispering_woods_bg';
-    }
-    if (chapterId >= 6 && chapterId <= 10) {
-      return this.textures.exists('mossy_hollow_bg') ? 'mossy_hollow_bg' : 'whispering_woods_bg';
-    }
-    if (chapterId === 12) {
-      return this.textures.exists('sketchbook_bg') ? 'sketchbook_bg' : 'mossy_hollow_bg';
-    }
-    if (chapterId >= 11 && chapterId <= 15) {
-      return this.textures.exists('mossy_hollow_bg') ? 'mossy_hollow_bg' : 'whispering_woods_bg';
-    }
-    if (chapterId >= 16 && chapterId <= 19) {
-      return this.textures.exists('pine_ridge_bg') ? 'pine_ridge_bg' : 'whispering_woods_bg';
-    }
-    if (chapterId === 20) {
-      return this.textures.exists('ranger_lodge_bg') ? 'ranger_lodge_bg' : 'whispering_woods_bg';
-    }
-    return 'whispering_woods_bg';
-  }
 
   private setupLocationSign(): void {
     // Interactive hitzone positioned exactly over the hanging wooden sign in the top-left
@@ -364,119 +348,94 @@ export class WorldScene extends Phaser.Scene {
     this.hideDialogue();
   }
 
-  private setupSceneHotspots(): void {
-    for (const z of this.hotspotZones) {
-      z.destroy();
+  private loadMap(mapId: MapId, spawn?: { x: number; y: number }): void {
+    this.currentMapId = mapId;
+    const def = MAP_DEFINITIONS[mapId] ?? MAP_DEFINITIONS.whispering_woods;
+
+    this.collisionGrid = createCollisionGridForMap(mapId);
+    this.pathfinder = new TilePathfindingManager(this.collisionGrid);
+
+    if (this.backdropImage) {
+      this.backdropImage.setTexture(def.textureKey);
+      this.backdropImage.setDisplaySize(BASE_WIDTH, 192);
     }
-    this.hotspotZones = [];
 
-    const addHotspot = (x: number, y: number, w: number, h: number, onDown: () => void) => {
-      const z = this.add.zone(x, y, w, h).setInteractive({ cursor: 'pointer' });
-      z.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-        pointer.event?.stopPropagation?.();
-        onDown();
-      });
-      this.hotspotZones.push(z);
-      return z;
-    };
+    const targetPos = spawn ?? def.defaultSpawn;
+    this.playerBody.x = targetPos.x;
+    this.playerBody.y = targetPos.y;
+    if (this.playerSprite) {
+      this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
+    }
+    if (this.pipCompanion) {
+      this.pipCompanion.reset(this.playerBody.x - 16, this.playerBody.y);
+    }
+    if (this.pipSprite) {
+      this.pipSprite.setPosition(this.playerBody.x - 16, this.playerBody.y);
+    }
+    this.currentWaypoints = [];
 
-    // 1. Whispering Woods (NW: 0..320, 0..192)
-    addHotspot(160, 92, 36, 30, () => {
-      audioManager.playPipChirrup();
-      audioManager.playKalimba(2);
-      this.showDialogue('Pip: Look! A hidden friend in the grass! Notice its round footprints in the soft soil 🐾 🦔', '🦔');
-    });
-
-    addHotspot(50, 155, 45, 25, () => {
-      audioManager.playWaterBubble();
-      this.showDialogue('Pip: Smooth stepping stones lead across the brook! Let\'s count them: 1, 2, 3... 🦆 🪨', '🦆');
-    });
-
-    addHotspot(275, 130, 40, 50, () => {
-      audioManager.playWoodblock();
-      this.showDialogue('Pip: The wooden windmill pumps water into Pebble Creek! Look at the wooden gears ⚙️ 🌾', '⚙️');
-    });
-
-    // 2. The Mossy Gearbox & Waterwheel (NE: 320..640, 0..192)
-    addHotspot(535, 50, 40, 40, () => {
-      audioManager.playWoodblock();
-      this.showDialogue('Pip: Hello Mr. Beaver! He is helping us repair the wooden weir 🪵 🦫', '🦫');
-    });
-
-    addHotspot(480, 80, 70, 60, () => {
-      audioManager.playWoodblock();
-      this.scene.pause('WorldScene');
-      this.scene.launch('PuzzleOverlayScene', {
-        puzzleType: 'mossy_gearbox',
-        onComplete: () => {
-          this.showDialogue('Pip: The wooden gears mesh together smoothly! The waterwheel spins! ⚙️🌊', '⚙️');
-          this.campaign.completeCurrentChapter();
-        },
-      });
-    });
-
-    // 3. Mossy Hollow (SW: 0..320, 192..384)
-    addHotspot(110, 275, 44, 44, () => {
-      audioManager.playKalimba(3);
-      this.showDialogue('Pip: Whoa! Those mushrooms glow in the dark! Bioluminescent fungi light up the hollow 🍄 🔍', '🍄');
-    });
-
-    addHotspot(40, 290, 45, 50, () => {
-      audioManager.playWoodblock();
-      this.showDialogue('Pip: A cool breeze flows from the cavern entrance! What secrets are hidden inside? 🦇 🗝️', '🦇');
-    });
-
-    // 4. Pine Ridge & Ranger Lodge (SE: 320..640, 192..384)
-    addHotspot(430, 280, 45, 45, () => {
-      audioManager.playPipChirrup();
-      this.showDialogue('Pip: Big back paws leap ahead of small front paws! The trail leads to the badger mound 🐾❄️', '🐇');
-    });
-
-    addHotspot(540, 270, 60, 60, () => {
-      audioManager.playKalimba(4);
-      audioManager.playPipChirrup();
-      this.showDialogue('Pip: Everyone is safe and warm by the fireplace! We earned the Junior Ranger Honor! 🐻🐿️🦊', '🎖️');
-    });
+    this.updateCurrentRegionName();
+    this.setupSceneHotspots();
   }
 
   private switchChapter(chapterId: number): void {
     this.campaign.startChapter(chapterId);
-
-    // Position characters in authentic canonical spots per quadrant / chapter
-    if (chapterId >= 1 && chapterId <= 5) {
-      // Whispering Woods (NW)
-      this.playerBody.x = 105;
-      this.playerBody.y = 80;
-    } else if (chapterId >= 6 && chapterId <= 7) {
-      // The Mossy Gearbox (NE)
-      this.playerBody.x = 480;
-      this.playerBody.y = 96;
-    } else if (chapterId >= 8 && chapterId <= 15) {
-      // Mossy Hollow (SW)
-      this.playerBody.x = 160;
-      this.playerBody.y = 288;
-    } else if (chapterId >= 16 && chapterId <= 19) {
-      // The Pine Ridge (SE)
-      this.playerBody.x = 480;
-      this.playerBody.y = 288;
-    } else if (chapterId === 20) {
-      // Ranger Lodge celebration (SE)
-      this.playerBody.x = 520;
-      this.playerBody.y = 270;
-    }
-
-    this.playerSprite.setPosition(this.playerBody.x, this.playerBody.y);
-    this.pipSprite.setPosition(this.playerBody.x - 16, this.playerBody.y);
-    this.cameraController.snapTo(this.playerBody.x, this.playerBody.y);
-    const scroll = this.cameraController.scroll();
-    this.cameras.main.setScroll(scroll.x, scroll.y);
-
-    this.updateCurrentRegionName();
+    const targetMap = getMapIdForChapter(chapterId);
+    this.loadMap(targetMap);
     this.updateChapterDialogue();
-    this.setupSceneHotspots();
-
-    // Trigger acoustic kalimba chord
     audioManager.playKalimba(chapterId % 5);
+  }
+
+  private setupSceneHotspots(): void {
+    this.hotspotZones.forEach((z) => z.destroy());
+    this.hotspotZones = [];
+
+    const def = MAP_DEFINITIONS[this.currentMapId];
+    if (!def) return;
+
+    for (const spot of def.hotspots) {
+      const z = this.add.zone(spot.x, spot.y, spot.radius * 2, spot.radius * 2)
+        .setOrigin(0.5)
+        .setDepth(22)
+        .setInteractive({ cursor: 'pointer' });
+
+      z.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        pointer.event?.stopPropagation?.();
+        if (spot.soundType === 'woodblock') audioManager.playWoodblock();
+        else if (spot.soundType === 'kalimba') audioManager.playKalimba(3);
+        else if (spot.soundType === 'chime') audioManager.playChime();
+
+        if (spot.id === 'gear_chest' || spot.id === 'waterwheel') {
+          if (this.campaign.currentChapter.id === 7) {
+            this.scene.pause('WorldScene');
+            this.scene.launch('PuzzleOverlayScene', {
+              puzzleType: 'mossy_gearbox',
+              onComplete: () => {
+                this.showDialogue('Pip: The wooden gears mesh together smoothly! The waterwheel spins! ⚙️🌊', '⚙️');
+                this.campaign.completeCurrentChapter();
+              },
+            });
+            return;
+          }
+        } else if (spot.id === 'stepping_stones') {
+          if (this.campaign.currentChapter.id === 3) {
+            this.scene.pause('WorldScene');
+            this.scene.launch('PuzzleOverlayScene', {
+              puzzleType: 'stepping_stones',
+              onComplete: () => {
+                this.showDialogue('Pip: 1, 2, 3, 4, 5! All the little ducklings safely crossed the pond! 🦆🌸', '🦆');
+                this.campaign.completeCurrentChapter();
+              },
+            });
+            return;
+          }
+        }
+
+        this.showDialogue(spot.dialogueText, '🔍');
+      });
+
+      this.hotspotZones.push(z);
+    }
   }
 
   private setupEventListeners(): void {
@@ -752,13 +711,16 @@ export class WorldScene extends Phaser.Scene {
       if (dist < 4) {
         this.currentWaypoints.shift();
       } else {
-        const step = Math.min(dist, 1.4);
         const nx = dx / dist;
         const ny = dy / dist;
         const dir: Facing = Math.abs(nx) >= Math.abs(ny) ? (nx > 0 ? 'right' : 'left') : (ny > 0 ? 'down' : 'up');
         this.playerBody.facing = dir;
-        this.playerBody.x += nx * step;
-        this.playerBody.y += ny * step;
+
+        const dtSec = Math.min(delta / 1000, 0.05);
+        const res = this.movementController.step(this.playerBody, { x: nx, y: ny }, dtSec, this.collisionGrid);
+        if (!res.moved) {
+          this.currentWaypoints = [];
+        }
         this.walkCycleTimer += delta;
         const f = Math.floor(this.walkCycleTimer / 140) % 4;
         this.playerSprite.setTexture(`ranger_${dir}_${f}`);
@@ -778,6 +740,20 @@ export class WorldScene extends Phaser.Scene {
       // Stopped / Idle
       this.playerSprite.setTexture(`ranger_${this.playerBody.facing}_0`);
       this.pipSprite.setTexture('pip_IDLE_CURIOUS_0');
+    }
+
+    // Check map exits
+    const currentDef = MAP_DEFINITIONS[this.currentMapId];
+    if (currentDef && currentDef.exits.length > 0) {
+      for (const exit of currentDef.exits) {
+        const exitPx = exit.x * 16 + 8;
+        const exitPy = exit.y * 16 + 8;
+        if (Math.hypot(this.playerBody.x - exitPx, this.playerBody.y - exitPy) < 16) {
+          audioManager.playKalimba(2);
+          this.loadMap(exit.targetMap, exit.targetSpawn);
+          break;
+        }
+      }
     }
 
     // Update Pip Companion and Camera
@@ -858,18 +834,20 @@ export class WorldScene extends Phaser.Scene {
   private updateCurrentRegionName(): void {
     const px = this.playerBody.x;
     const py = this.playerBody.y;
-    let region = 'THE WHISPERING WOODS';
-    if (px < 320 && py < 192) {
-      region = 'THE WHISPERING WOODS';
-    } else if (px >= 320 && py < 192) {
-      region = 'THE MOSSY GEARBOX';
-    } else if (px < 320 && py >= 192) {
-      region = 'MOSSY HOLLOW';
-    } else {
-      region = (px >= 480 && py >= 240) ? 'RANGER LODGE' : 'THE PINE RIDGE';
+
+    if (px >= 320 && py < 192 && this.currentMapId !== 'mossy_gearbox') {
+      this.loadMap('mossy_gearbox', { x: 136, y: 104 });
+    } else if (px >= 320 && py >= 192 && this.currentMapId !== 'pine_ridge') {
+      this.loadMap('pine_ridge', { x: 48, y: 96 });
+    } else if (px < 320 && py >= 192 && this.currentMapId !== 'mossy_hollow') {
+      this.loadMap('mossy_hollow', { x: 140, y: 116 });
     }
-    if (this.locationSignText && this.locationSignText.text !== region) {
-      this.locationSignText.setText(region);
+
+    const def = MAP_DEFINITIONS[this.currentMapId];
+    if (this.locationSignText && def) {
+      if (this.locationSignText.text !== def.displayName) {
+        this.locationSignText.setText(def.displayName);
+      }
     }
   }
 
