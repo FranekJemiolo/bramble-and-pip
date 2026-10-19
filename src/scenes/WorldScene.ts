@@ -41,13 +41,25 @@ export interface GameStateInspection {
 }
 
 export interface InteractiveAnimal {
-  kind: 'hedgehog' | 'duckling' | 'sparrow' | 'rabbit' | 'badger';
+  kind: string;
   x: number;
   y: number;
   sprite: Phaser.GameObjects.Sprite;
   name: string;
   sightWords: string[];
   pictogramKey: string;
+  dialogueText: string;
+  soundType: 'woodblock' | 'kalimba' | 'chime';
+  discovered?: boolean;
+}
+
+export interface NatureTrack {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  sprite: Phaser.GameObjects.Sprite;
+  description: string;
 }
 
 export interface CollectibleItem {
@@ -83,6 +95,7 @@ export class WorldScene extends Phaser.Scene {
   private isSunsetTriggered = false;
 
   private animals: InteractiveAnimal[] = [];
+  private natureTracks: NatureTrack[] = [];
   private collectibles: CollectibleItem[] = [];
   private stepSoundTimer = 0;
   private activeDPadDirection: 'up' | 'down' | 'left' | 'right' | null = null;
@@ -150,13 +163,6 @@ export class WorldScene extends Phaser.Scene {
     this.textureBank.register('tile_tree', TileGenerator.generatePineTree());
     this.textureBank.register('tile_watermill', TileGenerator.generateCabinProp('wall'));
     this.textureBank.register('tile_lilypad', TileGenerator.generateLilyPad(3));
-
-    // Animal sprites
-    this.textureBank.register('animal_hedgehog', SpriteGenerator.generateAnimal('hedgehog'));
-    this.textureBank.register('animal_duckling', SpriteGenerator.generateAnimal('duckling'));
-    this.textureBank.register('animal_sparrow', SpriteGenerator.generateAnimal('sparrow'));
-    this.textureBank.register('animal_rabbit', SpriteGenerator.generateAnimal('rabbit'));
-    this.textureBank.register('animal_badger', SpriteGenerator.generateAnimal('badger'));
 
     // Nature items
     this.textureBank.register('item_acorn', SpriteGenerator.generateItemIcon('acorn'));
@@ -392,6 +398,7 @@ export class WorldScene extends Phaser.Scene {
       this.locationSignText.setText(def.displayName);
     }
     this.setupSceneHotspots();
+    this.spawnWoodlandWildlife(mapId);
     this.exitCooldownTimer = 600;
   }
 
@@ -709,29 +716,187 @@ export class WorldScene extends Phaser.Scene {
     this.showDialogue(`Pip: I'm right here with you! Let's explore ${ch.region}! 🐾❤️`, '🌰');
   }
 
-  private spawnWoodlandWildlife(): void {
-    // Collectibles in overworld
-    const acorn = this.add.sprite(90, 100, 'item_acorn');
-    const pinecone = this.add.sprite(210, 120, 'item_pinecone');
-    const leaf = this.add.sprite(150, 80, 'item_leaf_oak');
+  private addFauna(
+    kind: string,
+    textureKey: string,
+    x: number,
+    y: number,
+    scale: number,
+    name: string,
+    sightWords: string[],
+    dialogueText: string,
+    soundType: 'woodblock' | 'kalimba' | 'chime' = 'woodblock'
+  ): void {
+    const sprite = this.add.sprite(x, y, textureKey);
+    sprite.setOrigin(0.5, 0.5);
+    sprite.setScale(scale);
+    sprite.setDepth(14);
+    sprite.setInteractive({ cursor: 'pointer' });
 
-    this.collectibles.push(
-      { id: 'acorn', name: 'Oak Acorn', description: 'Smooth glossy acorn', pictogramKey: 'acorn', x: 90, y: 100, sprite: acorn },
-      { id: 'pinecone', name: 'Pine Cone', description: 'Fragrant pine cone', pictogramKey: 'pinecone', x: 210, y: 120, sprite: pinecone },
-      { id: 'leaf_oak', name: 'Autumn Oak Leaf', description: 'Crisp golden leaf', pictogramKey: 'leaf', x: 150, y: 80, sprite: leaf }
-    );
+    sprite.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      pointer.event?.stopPropagation?.();
+      if (soundType === 'woodblock') audioManager.playWoodblock();
+      else if (soundType === 'kalimba') audioManager.playKalimba(4);
+      else if (soundType === 'chime') audioManager.playChime();
 
-    // Interactive Hedgehog
-    const hedgehog = this.add.sprite(180, 85, 'animal_hedgehog');
-    this.animals.push({
-      kind: 'hedgehog',
-      x: 180,
-      y: 85,
-      sprite: hedgehog,
-      name: 'Hedgehog',
-      sightWords: ['SNUFFLE', 'IN', 'GRASS'],
-      pictogramKey: 'paw',
+      this.pipCompanion?.inspectTarget(2.0);
+      this.tweens.add({
+        targets: sprite,
+        y: y - 4,
+        duration: 120,
+        yoyo: true,
+        ease: 'Sine.easeInOut',
+      });
+      const words = sightWords.join(' · ');
+      this.showDialogue(`${name}: "${words}"\n${dialogueText}`, '🐾');
     });
+
+    this.animals.push({
+      kind,
+      x,
+      y,
+      sprite,
+      name,
+      sightWords,
+      pictogramKey: 'paw',
+      dialogueText,
+      soundType,
+    });
+  }
+
+  private addTrack(
+    id: string,
+    textureKey: string,
+    x: number,
+    y: number,
+    scale: number,
+    name: string,
+    description: string
+  ): void {
+    const sprite = this.add.sprite(x, y, textureKey);
+    sprite.setOrigin(0.5, 0.5);
+    sprite.setScale(scale);
+    sprite.setDepth(4);
+    sprite.setAlpha(0.85);
+    sprite.setInteractive({ cursor: 'pointer' });
+
+    sprite.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      pointer.event?.stopPropagation?.();
+      audioManager.playWoodblock();
+      this.pipCompanion?.inspectTarget(2.0);
+      this.showDialogue(`[Footprint Trail] ${name}\n${description}`, '👣');
+    });
+
+    this.natureTracks.push({
+      id,
+      name,
+      x,
+      y,
+      sprite,
+      description,
+    });
+  }
+
+  private spawnWoodlandWildlife(mapId?: MapId): void {
+    // 1. Clear existing wildlife and track sprites
+    for (const a of this.animals) {
+      a.sprite.destroy();
+    }
+    this.animals = [];
+
+    for (const t of this.natureTracks) {
+      t.sprite.destroy();
+    }
+    this.natureTracks = [];
+
+    // 2. Overworld Collectibles (instantiated once)
+    if (this.collectibles.length === 0) {
+      const acorn = this.add.sprite(90, 100, 'item_acorn');
+      const pinecone = this.add.sprite(210, 120, 'item_pinecone');
+      const leaf = this.add.sprite(150, 80, 'item_leaf_oak');
+
+      this.collectibles.push(
+        { id: 'acorn', name: 'Oak Acorn', description: 'Smooth glossy acorn', pictogramKey: 'acorn', x: 90, y: 100, sprite: acorn },
+        { id: 'pinecone', name: 'Pine Cone', description: 'Fragrant pine cone', pictogramKey: 'pinecone', x: 210, y: 120, sprite: pinecone },
+        { id: 'leaf_oak', name: 'Autumn Oak Leaf', description: 'Crisp golden leaf', pictogramKey: 'leaf', x: 150, y: 80, sprite: leaf }
+      );
+    }
+
+    const activeMap = mapId ?? this.currentMapId;
+
+    switch (activeMap) {
+      case 'ranger_cabin':
+        this.addFauna('sparrow', 'sparrow_stand', 200, 105, 0.32, 'Garden Sparrow', ['PECK', 'SEED', 'BREAD'], 'Pip: A cheerful sparrow gathering sunflower seeds near the cabin steps!', 'chime');
+        this.addFauna('hedgehog', 'hedgehog_idle', 240, 80, 0.36, 'Garden Hedgehog', ['SNUFFLE', 'IN', 'GRASS'], 'Pip: Snuffling happily in the cabbage patch for slugs and beetles!', 'woodblock');
+        this.addFauna('dormouse', 'dormouse_sleep_1', 45, 75, 0.30, 'Curled Dormouse', ['SLEEP', 'COZY', 'NEST'], 'Pip: Fast asleep in a woven reed basket in the garden shed!', 'kalimba');
+        this.addFauna('insect', 'insect_bumblebee', 260, 55, 0.28, 'Fuzzy Bumblebee', ['BUZZ', 'SWEET', 'FLOWER'], 'Pip: Gathering amber pollen from yellow zucchini blooms!', 'chime');
+        this.addFauna('insect', 'insect_snail', 220, 110, 0.28, 'Mossy Snail', ['SLOW', 'SLIDE', 'STONE'], 'Pip: Leaving a silvery trail across the smooth patio stone!', 'woodblock');
+        this.addTrack('track_bird', 'track_bird_3toed', 180, 110, 0.32, 'Three-Toed Sparrow Trail', 'Tiny three-toed bird tracks leading to the garden water saucer.');
+        this.addTrack('track_mud', 'track_mud_puddle', 135, 140, 0.32, 'Soft Garden Mud Print', 'Damp earth mounds and muddy paw prints beside the vegetable garden path.');
+        break;
+
+      case 'whispering_woods':
+      case 'pebble_creek':
+        this.addFauna('beaver', 'beaver_carry_log', 58, 140, 0.40, 'River Beaver', ['CHOP', 'WOOD', 'POND'], 'Pip: Hard at work transporting birch logs to reinforce the river lodge!', 'woodblock');
+        this.addFauna('frog', 'frog_idle_front', 38, 124, 0.32, 'Brook Frog', ['JUMP', 'SPLASH', 'LILY'], 'Pip: Sunbathing peacefully on a mossy pebble by the stepping stones!', 'kalimba');
+        this.addFauna('goose', 'goose_swim', 62, 160, 0.36, 'Canada Goose', ['SWIM', 'COOL', 'LAKE'], 'Pip: Paddling smoothly through the clear river shallows!', 'chime');
+        this.addFauna('cardinal', 'cardinal_perch_branch', 190, 68, 0.32, 'Northern Cardinal', ['RED', 'BIRD', 'SING'], 'Pip: Brilliant scarlet plumage glowing against the woodland birch bark!', 'chime');
+        this.addFauna('insect', 'insect_green_beetle', 120, 110, 0.28, 'Emerald Beetle', ['CRAWL', 'SHINY', 'BARK'], 'Pip: An iridescent green beetle hunting for lichen under old roots!', 'woodblock');
+        this.addTrack('track_bird', 'track_bird_y', 74, 128, 0.32, 'Waterbird Y-Tracks', 'Classic three-toed Y-shaped waterfowl prints in the riverbank sand.');
+        this.addTrack('track_rabbit', 'track_rabbit_stride', 140, 88, 0.32, 'Hopping Rabbit Strides', 'Light pair-spread paw prints bounding through the woodland path.');
+        break;
+
+      case 'mossy_hollow':
+        this.addFauna('badger', 'badger_walk', 120, 72, 0.42, 'Eurasian Badger', ['DIG', 'EARTH', 'CLAW'], 'Pip: Foraging beneath the ancient hollow oak for earthworms and roots!', 'woodblock');
+        this.addFauna('rabbit', 'rabbit_sit', 70, 110, 0.36, 'Hollow Cottontail', ['HOP', 'FERN', 'SHADOW'], 'Pip: Tucked safely under lush green ferns, twitching curious ears!', 'kalimba');
+        this.addFauna('dormouse', 'dormouse_upright', 155, 65, 0.32, 'Alert Wood Mouse', ['LOOK', 'UP', 'STAR'], 'Pip: Standing tall on hind paws, nibbling a dried hazelnut!', 'chime');
+        this.addFauna('owl', 'owl_perched_front', 230, 88, 0.38, 'Tawny Owl', ['HOOT', 'NIGHT', 'WISE'], 'Pip: Gazing serenely from a deep tree hollow with golden eyes!', 'chime');
+        this.addFauna('insect', 'insect_caterpillar_walk', 95, 135, 0.28, 'Striped Caterpillar', ['INCH', 'GREEN', 'LEAF'], 'Pip: Slowly inching along a mossy fallen log toward fresh willow leaves!', 'woodblock');
+        this.addTrack('track_badger', 'track_badger_claw', 140, 95, 0.32, 'Five-Clawed Badger Tracks', 'Broad palm impression with five sharp digging claws in soft loam.');
+        this.addTrack('track_rabbit', 'track_rabbit_stride', 80, 125, 0.32, 'Rabbit Stride Trail', 'Distinct leap strides leading toward the hollow blackberry thicket.');
+        break;
+
+      case 'mossy_gearbox':
+        this.addFauna('beaver', 'beaver_gnaw_log', 216, 35, 0.40, 'Master Builder Beaver', ['BUILD', 'WATER', 'DAM'], 'Pip: Crafting precision notches into waterwheel timber!', 'woodblock');
+        this.addFauna('frog', 'frog_angle', 150, 88, 0.32, 'Millrace Frog', ['LEAP', 'WET', 'STONE'], 'Pip: Catching water droplets flicked by the revolving waterwheel!', 'kalimba');
+        this.addFauna('badger', 'badger_alert', 180, 130, 0.40, 'Curious Badger', ['SNIFF', 'STONE', 'GEAR'], 'Pip: Inspecting the wooden cogs with quiet curiosity!', 'woodblock');
+        this.addFauna('insect', 'insect_blue_beetle', 110, 95, 0.28, 'Cobalt Ground Beetle', ['ARMOR', 'BLUE', 'ROCK'], 'Pip: Navigating the mossy granite masonry of the mill sluice!', 'chime');
+        this.addFauna('goose', 'goose_glide', 250, 65, 0.36, 'Gliding Goose', ['SOAR', 'WIND', 'HIGH'], 'Pip: Banking gracefully on autumn thermal winds above the millpool!', 'chime');
+        this.addTrack('track_badger', 'track_badger_claw', 195, 135, 0.32, 'Webbed Badger & Beaver Trail', 'Clawed footprints pressed into wet river sediment beside the mill.');
+        this.addTrack('track_mud', 'track_mud_puddle', 140, 140, 0.32, 'Splash Pool Mud Mark', 'Wet mud trails where river animals climbed ashore.');
+        break;
+
+      case 'sunset_meadow':
+        this.addFauna('deer', 'deer_alert_buck', 230, 76, 0.46, 'Noble Forest Stag', ['TALL', 'HORN', 'RUN'], 'Pip: Magnificent velvet antlers glowing against the amber sunset!', 'chime');
+        this.addFauna('deer', 'deer_graze_fawn', 190, 95, 0.35, 'Grazing Fawn', ['EAT', 'SWEET', 'HAY'], 'Pip: Nibbling dandelion heads and meadow clover blossoms!', 'kalimba');
+        this.addFauna('rabbit', 'rabbit_alert', 110, 135, 0.36, 'Meadow Hare', ['FAST', 'RUN', 'HILL'], 'Pip: Listening attentively to the evening breeze across the open meadow!', 'woodblock');
+        this.addFauna('cardinal', 'cardinal_wings_flap', 165, 60, 0.32, 'Flying Cardinal', ['FLAP', 'WING', 'SKY'], 'Pip: Flitting through the golden grass seed heads toward the elderberry tree!', 'chime');
+        this.addFauna('insect', 'insect_bumblebee', 80, 115, 0.28, 'Sunset Honeybee', ['BUZZ', 'WARM', 'HIVE'], 'Pip: Finishing the last flower run before returning to the hive for bed!', 'chime');
+        this.addTrack('track_deer', 'track_deer_hoof', 200, 115, 0.32, 'Cloven Deer Hoof Marks', 'Crisp two-toed heart-shaped deer prints along the meadow path.');
+        this.addTrack('track_rabbit', 'track_rabbit_stride', 125, 145, 0.32, 'Meandering Hare Trail', 'Swift hopping strides zig-zagging between clover clumps.');
+        break;
+
+      case 'pine_ridge':
+        this.addFauna('bear', 'bear_sit_side', 250, 90, 0.46, 'Alpine Black Bear', ['BIG', 'KIND', 'REST'], 'Pip: Leaning against a granite crag, soaking in the crisp pine breeze!', 'woodblock');
+        this.addFauna('owl', 'owl_wings_open', 105, 48, 0.38, 'Great Horned Owl', ['FLY', 'WIDE', 'NIGHT'], 'Pip: Spreading immense feathered wings among the high mountain pines!', 'chime');
+        this.addFauna('deer', 'deer_fawn_walk', 180, 105, 0.35, 'Alpine Fawn', ['STEP', 'HIGH', 'ROCK'], 'Pip: Sure-footed stepping along the stony alpine ridge trail!', 'kalimba');
+        this.addFauna('sparrow', 'sparrow_look_up', 75, 88, 0.32, 'Mountain Sparrow', ['CHIRP', 'PINE', 'CONE'], 'Pip: Peering up at the towering conifer canopy!', 'chime');
+        this.addTrack('track_bear', 'track_bear_paw', 220, 110, 0.34, 'Heavy Bear Paw Prints', 'Large five-toed paw impression with deep claw marks in mountain loam.');
+        this.addTrack('track_deer', 'track_deer_hoof', 150, 115, 0.32, 'Sharp Mountain Hoof Marks', 'Deep hoof prints pressed into the firm alpine dirt path.');
+        break;
+
+      case 'ranger_lodge':
+      case 'winter_lodge':
+        this.addFauna('bear', 'bear_sleep', 250, 55, 0.48, 'Sleeping Bear', ['REST', 'WARM', 'DEN'], 'Pip: Safely hibernating under sheltered evergreen boughs! Shh... quiet steps.', 'woodblock');
+        this.addFauna('owl', 'owl_perched_side', 195, 45, 0.38, 'Snowy Owl', ['WHITE', 'SNOW', 'LOOK'], 'Pip: Perched upon the cedar cabin rafter, watching over the snowy forest!', 'chime');
+        this.addFauna('rabbit', 'rabbit_crouch', 145, 70, 0.36, 'Winter Cottontail', ['HIDE', 'COLD', 'SNUG'], 'Pip: Curled close by the warm woodpile, fur as white as fresh snowfall!', 'kalimba');
+        this.addFauna('cardinal', 'cardinal_perch_turn', 280, 165, 0.32, 'Winter Cardinal', ['RUBY', 'COLD', 'TREE'], 'Pip: A splash of brilliant ruby against the pristine snowbank!', 'chime');
+        this.addFauna('dormouse', 'dormouse_sleep_2', 80, 165, 0.30, 'Cozy Dormouse', ['DREAM', 'NUTS', 'SPRING'], 'Pip: Deep in winter slumber inside a hollow acorn cup lined with moss.', 'chime');
+        this.addTrack('track_bear', 'track_bear_paw', 235, 80, 0.34, 'Snow Bear Tracks', 'Heavy padded paw impressions sunk into winter snowdrifts.');
+        this.addTrack('track_bird', 'track_bird_y', 255, 168, 0.32, 'Snow Bird Prints', 'Delicate three-toed trail across fresh winter powder.');
+        this.addTrack('track_rabbit', 'track_rabbit_stride', 160, 168, 0.32, 'Snow Rabbit Bounding', 'Long bounding leaps stamped into the crisp snow.');
+        break;
+    }
   }
 
   private setupInputControls(): void {
@@ -959,6 +1124,14 @@ export class WorldScene extends Phaser.Scene {
         });
         audioManager.playWaterBubble();
         this.showDialogue(`Pip: Look! You found a fresh ${c.name}! Placed in satchel! 🎒`, '🌰');
+      }
+    }
+
+    // 5. Proximity Animal Discovery (Pip alert reaction)
+    for (const animal of this.animals) {
+      if (!animal.discovered && Math.hypot(animal.x - this.playerBody.x, animal.y - this.playerBody.y) < 28) {
+        animal.discovered = true;
+        this.pipCompanion?.inspectTarget(1.5);
       }
     }
   }
