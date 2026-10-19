@@ -6,7 +6,11 @@ export type MapId =
   | 'mossy_hollow'
   | 'pine_ridge'
   | 'ranger_lodge'
-  | 'sketchbook';
+  | 'sketchbook'
+  | 'ranger_cabin'
+  | 'pebble_creek'
+  | 'sunset_meadow'
+  | 'winter_lodge';
 
 export interface MapExit {
   x: number; // tile x
@@ -40,6 +44,95 @@ export interface MapDefinition {
 }
 
 export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
+  // 1. RANGER CABIN & GARDEN (Starting safe zone)
+  ranger_cabin: {
+    id: 'ranger_cabin',
+    displayName: 'RANGER CABIN & GARDEN',
+    textureKey: 'ranger_cabin_bg',
+    tileWidth: 20,
+    tileHeight: 12,
+    defaultSpawn: { x: 100, y: 88 },
+    collisionRows: [
+      '####################',
+      '##...#...#####.#####',
+      '##...#...#...#.....#',
+      '##...#...#...#.....#',
+      '##.......#...#.....#',
+      '##.......#...#.....#',
+      '##.......#####.....#',
+      '##.................#',
+      '########..##########',
+      '#######....#########',
+      '#######....#########',
+      '#######....#########',
+    ],
+    exits: [
+      {
+        x: 9,
+        y: 11,
+        radius: 22,
+        direction: 'south',
+        targetMap: 'whispering_woods',
+        targetSpawn: { x: 144, y: 24 },
+      },
+      {
+        x: 8,
+        y: 11,
+        radius: 22,
+        direction: 'south',
+        targetMap: 'pebble_creek',
+        targetSpawn: { x: 144, y: 24 },
+      },
+      {
+        x: 9,
+        y: 8,
+        radius: 22,
+        direction: 'door',
+        targetMap: 'ranger_lodge',
+        targetSpawn: { x: 260, y: 100 },
+      },
+    ],
+    hotspots: [
+      {
+        id: 'fireplace',
+        name: 'Cast Iron Stove',
+        x: 125,
+        y: 45,
+        radius: 20,
+        dialogueText: 'Pip: The warm hearth crackles softly! Safe and sound indoors. 🔥',
+        soundType: 'kalimba',
+      },
+      {
+        id: 'bookshelf',
+        name: 'Ranger Field Library',
+        x: 36,
+        y: 50,
+        radius: 20,
+        dialogueText: 'Pip: Books on flora, fauna, and animal tracks across the woods! 📚',
+        soundType: 'woodblock',
+      },
+      {
+        id: 'nature_table',
+        name: 'Junior Ranger Desk',
+        x: 60,
+        y: 90,
+        radius: 22,
+        dialogueText: 'Pip: A handcrafted cedar desk with nature pressings and dried acorns! 🌰',
+        soundType: 'woodblock',
+      },
+      {
+        id: 'vegetable_garden',
+        name: 'Backyard Garden Patch',
+        x: 245,
+        y: 60,
+        radius: 24,
+        dialogueText: 'Pip: Crisp sweet carrots and plump cabbages for woodland snacks! 🥕',
+        soundType: 'chime',
+      },
+    ],
+  },
+
+  // 2. PEBBLE CREEK / WHISPERING WOODS (Spring)
   whispering_woods: {
     id: 'whispering_woods',
     displayName: 'THE WHISPERING WOODS',
@@ -48,9 +141,9 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
     tileHeight: 12,
     defaultSpawn: { x: 105, y: 88 },
     collisionRows: [
-      '##...###############',
-      '##...###############',
-      '##...###############',
+      '##...###...#########',
+      '##...###...#########',
+      '##...###...#########',
       '#............#######',
       '.............#######',
       '....................',
@@ -77,6 +170,14 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
         direction: 'south',
         targetMap: 'mossy_hollow',
         targetSpawn: { x: 160, y: 16 },
+      },
+      {
+        x: 9,
+        y: 0,
+        radius: 22,
+        direction: 'north',
+        targetMap: 'ranger_cabin',
+        targetSpawn: { x: 144, y: 168 },
       },
     ],
     hotspots: [
@@ -119,6 +220,68 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
     ],
   },
 
+  pebble_creek: {
+    id: 'pebble_creek',
+    displayName: 'PEBBLE CREEK (SPRING)',
+    textureKey: 'pebble_creek_bg',
+    tileWidth: 20,
+    tileHeight: 12,
+    defaultSpawn: { x: 105, y: 88 },
+    collisionRows: [
+      '##...###...#########',
+      '##...###...#########',
+      '##...###...#########',
+      '#............#######',
+      '.............#######',
+      '....................',
+      '....................',
+      '..............######',
+      '##.#####.#...#######',
+      '##.#####.....#######',
+      '########.....#######',
+      '########.....#######',
+    ],
+    exits: [
+      {
+        x: 19,
+        y: 6,
+        radius: 22,
+        direction: 'east',
+        targetMap: 'mossy_hollow',
+        targetSpawn: { x: 16, y: 96 },
+      },
+      {
+        x: 9,
+        y: 0,
+        radius: 22,
+        direction: 'north',
+        targetMap: 'ranger_cabin',
+        targetSpawn: { x: 144, y: 168 },
+      },
+    ],
+    hotspots: [
+      {
+        id: 'hedgehog',
+        name: 'Little Hedgehog',
+        x: 164,
+        y: 72,
+        radius: 18,
+        dialogueText: 'Pip: Look! A hidden friend in the grass! 🦔🔍',
+        soundType: 'woodblock',
+      },
+      {
+        id: 'stepping_stones',
+        name: 'Pebble Creek Stepping Stones',
+        x: 160,
+        y: 48,
+        radius: 20,
+        dialogueText: 'Pip: Cool smooth river stones help us cross the bubbling brook! 🌊',
+        soundType: 'woodblock',
+      },
+    ],
+  },
+
+  // 3. MOSSY GEARBOX & MOSSY HOLLOW (Summer)
   mossy_gearbox: {
     id: 'mossy_gearbox',
     displayName: 'THE MOSSY GEARBOX',
@@ -135,7 +298,7 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
       '..................##',
       '..#####...#.....####',
       '#######...##....####',
-      '########........####',
+      '########............',
       '########........####',
       '########........####',
       '########........####',
@@ -156,6 +319,14 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
         direction: 'south',
         targetMap: 'pine_ridge',
         targetSpawn: { x: 144, y: 16 },
+      },
+      {
+        x: 19,
+        y: 8,
+        radius: 22,
+        direction: 'east',
+        targetMap: 'sunset_meadow',
+        targetSpawn: { x: 16, y: 144 },
       },
     ],
     hotspots: [
@@ -203,10 +374,10 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
       '###.........########',
       '###.........########',
       '###.........########',
-      '###.................',
       '....................',
-      '............########',
-      '###.........########',
+      '....................',
+      '....................',
+      '###.................',
       '###.........########',
       '####################',
     ],
@@ -226,6 +397,22 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
         direction: 'east',
         targetMap: 'pine_ridge',
         targetSpawn: { x: 16, y: 104 },
+      },
+      {
+        x: 19,
+        y: 9,
+        radius: 22,
+        direction: 'east',
+        targetMap: 'sunset_meadow',
+        targetSpawn: { x: 16, y: 144 },
+      },
+      {
+        x: 0,
+        y: 6,
+        radius: 22,
+        direction: 'west',
+        targetMap: 'pebble_creek',
+        targetSpawn: { x: 304, y: 96 },
       },
     ],
     hotspots: [
@@ -250,6 +437,69 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
     ],
   },
 
+  // 4. SUNSET MEADOW (Autumn)
+  sunset_meadow: {
+    id: 'sunset_meadow',
+    displayName: 'SUNSET MEADOW (AUTUMN)',
+    textureKey: 'sunset_meadow_bg',
+    tileWidth: 20,
+    tileHeight: 12,
+    defaultSpawn: { x: 60, y: 140 },
+    collisionRows: [
+      '####################',
+      '#######.############',
+      '######...###########',
+      '.....#...###########',
+      '.............#######',
+      '....................',
+      '....................',
+      '..............######',
+      '................####',
+      '................####',
+      '########.....#######',
+      '####################',
+    ],
+    exits: [
+      {
+        x: 0,
+        y: 9,
+        radius: 22,
+        direction: 'west',
+        targetMap: 'mossy_hollow',
+        targetSpawn: { x: 304, y: 144 },
+      },
+      {
+        x: 0,
+        y: 8,
+        radius: 22,
+        direction: 'west',
+        targetMap: 'mossy_gearbox',
+        targetSpawn: { x: 304, y: 128 },
+      },
+    ],
+    hotspots: [
+      {
+        id: 'squirrel_acorn',
+        name: 'Autumn Squirrels',
+        x: 100,
+        y: 70,
+        radius: 22,
+        dialogueText: 'Pip: Friendly squirrels gathering acorns for the winter cache! 🐿️🌰',
+        soundType: 'woodblock',
+      },
+      {
+        id: 'leaf_pile',
+        name: 'Crisp Leaf Pile',
+        x: 156,
+        y: 104,
+        radius: 20,
+        dialogueText: 'Pip: Rustling golden leaves! Perfect for soft woodland burrows! 🍂',
+        soundType: 'kalimba',
+      },
+    ],
+  },
+
+  // 5. THE PINE RIDGE (Winter)
   pine_ridge: {
     id: 'pine_ridge',
     displayName: 'THE PINE RIDGE',
@@ -264,8 +514,8 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
       '......####.......###',
       '......####.......###',
       '......####.......###',
-      '..................##',
-      '..................##',
+      '....................',
+      '....................',
       '##.#####.........###',
       '##.#####.........###',
       '########....########',
@@ -296,6 +546,14 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
         targetMap: 'ranger_lodge',
         targetSpawn: { x: 260, y: 100 },
       },
+      {
+        x: 19,
+        y: 7,
+        radius: 22,
+        direction: 'east',
+        targetMap: 'ranger_lodge',
+        targetSpawn: { x: 16, y: 112 },
+      },
     ],
     hotspots: [
       {
@@ -319,6 +577,7 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
     ],
   },
 
+  // 6. THE RANGER'S LODGE (Year-End gateway & celebration)
   ranger_lodge: {
     id: 'ranger_lodge',
     displayName: 'THE RANGER LODGE',
@@ -333,8 +592,8 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
       '######..............',
       '######..............',
       '######..............',
-      '######..########....',
-      '######..########....',
+      '..####..########....',
+      '..####..########....',
       '######..########....',
       '######..########....',
       '##..................',
@@ -348,6 +607,22 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
         direction: 'door',
         targetMap: 'pine_ridge',
         targetSpawn: { x: 32, y: 48 },
+      },
+      {
+        x: 0,
+        y: 7,
+        radius: 22,
+        direction: 'west',
+        targetMap: 'pine_ridge',
+        targetSpawn: { x: 304, y: 112 },
+      },
+      {
+        x: 16,
+        y: 6,
+        radius: 24,
+        direction: 'door',
+        targetMap: 'ranger_cabin',
+        targetSpawn: { x: 144, y: 112 },
       },
     ],
     hotspots: [
@@ -377,6 +652,67 @@ export const MAP_DEFINITIONS: Record<MapId, MapDefinition> = {
         radius: 28,
         dialogueText: 'Pip: A joyful forest harvest feast with all our woodland friends! 🍎🫐',
         soundType: 'chime',
+      },
+    ],
+  },
+
+  winter_lodge: {
+    id: 'winter_lodge',
+    displayName: "THE RANGER'S LODGE",
+    textureKey: 'winter_lodge_bg',
+    tileWidth: 20,
+    tileHeight: 12,
+    defaultSpawn: { x: 110, y: 90 },
+    collisionRows: [
+      '####################',
+      '####################',
+      '######..............',
+      '######..............',
+      '######..............',
+      '######..............',
+      '..####..########....',
+      '..####..########....',
+      '######..########....',
+      '######..########....',
+      '##..................',
+      '####################',
+    ],
+    exits: [
+      {
+        x: 0,
+        y: 7,
+        radius: 22,
+        direction: 'west',
+        targetMap: 'pine_ridge',
+        targetSpawn: { x: 304, y: 112 },
+      },
+      {
+        x: 16,
+        y: 6,
+        radius: 24,
+        direction: 'door',
+        targetMap: 'ranger_cabin',
+        targetSpawn: { x: 144, y: 112 },
+      },
+    ],
+    hotspots: [
+      {
+        id: 'fireplace',
+        name: 'Stone Hearth Fireplace',
+        x: 96,
+        y: 48,
+        radius: 24,
+        dialogueText: 'Pip: A warm, crackling cedar fire warms the snowy night! 🔥',
+        soundType: 'kalimba',
+      },
+      {
+        id: 'sleeping_bear',
+        name: 'Sleeping Brown Bear',
+        x: 64,
+        y: 116,
+        radius: 26,
+        dialogueText: 'Pip: Shh... the big bear is fast asleep until spring! 🐻💤',
+        soundType: 'woodblock',
       },
     ],
   },

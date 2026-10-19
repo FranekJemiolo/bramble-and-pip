@@ -198,7 +198,7 @@ npm run lint
 # Audit zero-egress invariants (source, bundle, and CSP)
 npm run audit:egress
 
-# Run Vitest unit & functional test suite (114 tests)
+# Run Vitest unit & functional test suite (120 tests)
 npm run test:unit
 
 # Run Playwright E2E browser tests (including 100 Monte Carlo stochastic touch trials)

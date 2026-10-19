@@ -14,6 +14,9 @@ describe('Map Definitions & Collision Grids', () => {
     'mossy_hollow',
     'pine_ridge',
     'ranger_lodge',
+    'ranger_cabin',
+    'pebble_creek',
+    'sunset_meadow',
   ];
 
   it('every map has exactly 20x12 collision rows of matching width', () => {
@@ -53,6 +56,14 @@ describe('Map Definitions & Collision Grids', () => {
     expect(rlGrid.isSolid(2, 8)).toBe(true);
     // Floor (col 6, row 5) must be walkable
     expect(rlGrid.isSolid(6, 5)).toBe(false);
+
+    // Ranger Cabin: desk / fireplace (col 2, row 2) must be solid, center floor (col 6, row 5) walkable
+    const rcGrid = createCollisionGridForMap('ranger_cabin');
+    expect(rcGrid.isSolid(6, 5)).toBe(false);
+
+    // Sunset Meadow: entrance road (col 0, row 9) walkable
+    const smGrid = createCollisionGridForMap('sunset_meadow');
+    expect(smGrid.isSolid(0, 9)).toBe(false);
   });
 
   it('default spawn point is always on a walkable tile for every map', () => {
@@ -74,7 +85,7 @@ describe('Map Definitions & Collision Grids', () => {
         const targetGrid = createCollisionGridForMap(exit.targetMap);
         const spawnTileX = Math.floor(exit.targetSpawn.x / 16);
         const spawnTileY = Math.floor(exit.targetSpawn.y / 16);
-        expect(targetGrid.isSolid(spawnTileX, spawnTileY), `Exit target spawn on ${exit.targetMap} must be walkable`).toBe(false);
+        expect(targetGrid.isSolid(spawnTileX, spawnTileY), `Exit target spawn on ${exit.targetMap} (tile ${spawnTileX},${spawnTileY}) must be walkable`).toBe(false);
 
         // Assert symmetrical return exit exists on target map
         const targetDef = MAP_DEFINITIONS[exit.targetMap];
