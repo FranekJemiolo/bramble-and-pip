@@ -769,9 +769,9 @@ export function createCollisionGridForMap(mapId: MapId): CollisionGrid {
 export function getMapIdForChapter(chapterId: number): MapId {
   if (chapterId >= 1 && chapterId <= 5) return 'whispering_woods';
   if (chapterId === 6 || chapterId === 7) return 'mossy_gearbox';
-  if (chapterId >= 8 && chapterId <= 11) return 'mossy_hollow';
+  if (chapterId >= 8 && chapterId <= 10) return 'mossy_hollow';
   if (chapterId === 12) return 'sketchbook';
-  if (chapterId >= 13 && chapterId <= 15) return 'mossy_hollow';
+  if (chapterId >= 11 && chapterId <= 15) return 'sunset_meadow';
   if (chapterId >= 16 && chapterId <= 19) return 'pine_ridge';
   if (chapterId === 20) return 'ranger_lodge';
   return 'whispering_woods';

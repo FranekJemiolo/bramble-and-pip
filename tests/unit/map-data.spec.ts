@@ -131,7 +131,7 @@ describe('Map Definitions & Collision Grids', () => {
     expect(getMapIdForChapter(7)).toBe('mossy_gearbox');
     expect(getMapIdForChapter(9)).toBe('mossy_hollow');
     expect(getMapIdForChapter(12)).toBe('sketchbook');
-    expect(getMapIdForChapter(14)).toBe('mossy_hollow');
+    expect(getMapIdForChapter(14)).toBe('sunset_meadow');
     expect(getMapIdForChapter(17)).toBe('pine_ridge');
     expect(getMapIdForChapter(20)).toBe('ranger_lodge');
   });

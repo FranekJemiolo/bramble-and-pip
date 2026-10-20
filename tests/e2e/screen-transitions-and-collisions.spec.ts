@@ -299,13 +299,15 @@ test.describe('Screen Transitions, Natural Collisions & Visual Checks', () => {
       await page.waitForTimeout(300);
 
       const localPath = path.join(outDir, m.filename);
-      const artifactPath = path.join(ARTIFACT_DIR, m.filename);
-
       const buffer = await canvas.screenshot();
       fs.writeFileSync(localPath, buffer);
-      fs.writeFileSync(artifactPath, buffer);
       expect(fs.existsSync(localPath)).toBe(true);
       expect(fs.statSync(localPath).size).toBeGreaterThan(1000);
+
+      if (fs.existsSync(ARTIFACT_DIR)) {
+        const artifactPath = path.join(ARTIFACT_DIR, m.filename);
+        fs.writeFileSync(artifactPath, buffer);
+      }
     }
 
     // Toggle off with 'C' key

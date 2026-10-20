@@ -605,6 +605,7 @@ export class WorldScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(22)
         .setInteractive({ cursor: 'pointer' });
+      z.setData('hotspotId', spot.id);
 
       z.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
         pointer.event?.stopPropagation?.();
@@ -658,6 +659,22 @@ export class WorldScene extends Phaser.Scene {
                 this.campaign.completeCurrentChapter();
               },
             });
+            return;
+          }
+        } else if (spot.id === 'celebration_table' || (spot.id === 'fireplace' && this.currentMapId === 'ranger_lodge')) {
+          if (this.campaign.currentChapter.id === 20) {
+            this.showDialogue('Pip: Everyone is safe and warm by the fireplace! We earned the Junior Ranger Honor! 🐻🐿️🦊', '🎖️');
+            audioManager.playKalimba(4);
+            audioManager.playPipChirrup();
+            this.campaign.completeCurrentChapter();
+            return;
+          }
+        } else if ((spot.id === 'fireplace' || spot.id === 'nature_table') && this.currentMapId === 'ranger_cabin') {
+          if (this.campaign.currentChapter.id === 1) {
+            this.showDialogue('Pip: Good morning Bramble! The brass lantern is glowing with warm morning light! 🏮✨', '🏮');
+            audioManager.playChime();
+            audioManager.playPipChirrup();
+            this.campaign.completeCurrentChapter();
             return;
           }
         }
@@ -1418,6 +1435,15 @@ export class WorldScene extends Phaser.Scene {
     return this.isCollisionDebugVisible;
   }
 
+  public triggerHotspot(id: string): boolean {
+    const z = this.hotspotZones.find((zone) => zone.getData('hotspotId') === id);
+    if (z) {
+      z.emit('pointerdown', { event: { stopPropagation: () => {} } });
+      return true;
+    }
+    return false;
+  }
+
   private renderCollisionDebug(): void {
     if (!this.collisionDebugGraphics) return;
     this.collisionDebugGraphics.clear();
@@ -1477,6 +1503,15 @@ export class WorldScene extends Phaser.Scene {
         this.switchChapter(id);
       };
 
+      (window as unknown as { __SET_CHAPTER__?: (id: number) => void }).__SET_CHAPTER__ = (id: number) => {
+        this.campaign.startChapter(id);
+        this.updateChapterDialogue();
+      };
+
+      (window as unknown as { __TRIGGER_HOTSPOT__?: (id: string) => boolean }).__TRIGGER_HOTSPOT__ = (id: string) => {
+        return this.triggerHotspot(id);
+      };
+
       (window as unknown as { __TOGGLE_COLLISION_DEBUG__?: (force?: boolean) => boolean }).__TOGGLE_COLLISION_DEBUG__ = (force?: boolean) => {
         return this.toggleCollisionDebug(force);
       };
@@ -1487,6 +1522,10 @@ export class WorldScene extends Phaser.Scene {
 
       (window as unknown as { __LOAD_MAP__?: (mapId: MapId, spawn?: { x: number; y: number }) => void }).__LOAD_MAP__ = (mapId: MapId, spawn?: { x: number; y: number }) => {
         this.loadMap(mapId, spawn);
+      };
+
+      (window as unknown as { __CAMPAIGN__?: () => unknown }).__CAMPAIGN__ = () => {
+        return this.campaign;
       };
     }
   }
